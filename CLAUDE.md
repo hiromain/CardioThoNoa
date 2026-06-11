@@ -59,20 +59,23 @@ existante.
 - `npm run build` / `npm run preview`
 
 ## Git & Synchronisation GitHub
-**Bonnes pratiques de push :**
-- Après chaque **modification importante** (nouvelle fonctionnalité, bug fix, refactoring). 
-  *Exemples: ajouter un filtre, corriger un écran blanc, améliorer le perf.*
-- **Régulièrement** au moins une fois par semaine, même pour des petits changements.
-- À la fin de la journée de travail si tu as fait des modifs.
+**Flux de travail :**
+- Claude **committe** régulièrement (après chaque modif importante)
+- Tu **pushes** toi-même au rythme que tu préfères (1x/semaine, ou quand c'est stable)
 
-**Pourquoi ?** Cela sert de sauvegarde — si quelque chose se casse, on peut revenir en arrière. 
-Pas besoin d'être perfectionniste sur les messages de commit : `Correction d'un bug` ou 
-`Amélioration du dashboard` suffisent.
+**Commit** = sauvegarde locale (sur ton PC)
+**Push** = envoi sur GitHub (sauvegarde cloud)
+
+**Bonnes pratiques pour ton push :**
+- Au minimum 1x/semaine (sauvegarde cloud)
+- Avant de fermer le laptop pour plusieurs jours
+- Quand tu as fait plusieurs modifs et que tu veux les archiver
 
 **Commande simple pour tout pousser :**
 ```bash
-git add . && git commit -m "Description courte de la modif" && git push
+git push
 ```
+(Elle envoie tous les commits locaux qui n'ont pas encore été pushés)
 
 ## Points d'attention pour la suite
 - Vérifier la cohérence avec `Untitled-1.md` (filtres contextuels par
