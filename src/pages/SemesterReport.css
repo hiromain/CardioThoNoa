@@ -1,0 +1,286 @@
+/* Synthèse de semestre — styles écran + impression PDF.
+   Le contenu du document (.report-paper) force des couleurs "papier" claires,
+   indépendantes du thème clair/sombre de l'application. */
+
+.report-paper {
+  --r-surface-2: #f0f3f7;
+  --r-border: #e2e8f2;
+  --r-text-1: #1a1d2e;
+  --r-text-2: #5b6880;
+  --r-text-3: #9ba8ba;
+
+  box-sizing: border-box;
+  max-width: 210mm;
+  margin: 20px auto 60px;
+  background: #ffffff;
+  color: var(--r-text-1);
+  padding: 14mm;
+  border-radius: 14px;
+  box-shadow: 0 8px 28px rgba(20, 30, 60, 0.12);
+}
+
+.report-paper * {
+  box-sizing: border-box;
+}
+
+.report-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 14px;
+  border-bottom: 3px solid var(--r-accent, var(--r-text-1));
+  margin-bottom: 18px;
+}
+
+.report-app-name {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--r-text-3);
+}
+
+.report-title {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--r-text-1);
+  margin: 2px 0 4px;
+  line-height: 1.25;
+}
+
+.report-subtitle {
+  font-size: 12.5px;
+  color: var(--r-text-2);
+}
+
+.report-intern {
+  text-align: right;
+  font-size: 11.5px;
+  color: var(--r-text-2);
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+.report-intern strong {
+  display: block;
+  color: var(--r-text-1);
+  font-size: 13.5px;
+  font-weight: 800;
+}
+
+.report-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 20px;
+  font-size: 11.5px;
+  color: var(--r-text-2);
+  margin-bottom: 22px;
+}
+
+.report-section {
+  margin-bottom: 22px;
+  break-inside: avoid;
+}
+
+.report-section--table {
+  break-inside: auto;
+}
+
+.report-section-title {
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--r-text-2);
+  margin-bottom: 10px;
+}
+
+/* KPI grid */
+.report-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+
+.report-kpi {
+  border: 1px solid var(--r-border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: var(--r-surface-2);
+}
+
+.report-kpi-value {
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.report-kpi-label {
+  font-size: 9.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--r-text-3);
+  margin-top: 5px;
+}
+
+.report-kpi-sub {
+  font-size: 10.5px;
+  color: var(--r-text-2);
+  margin-top: 2px;
+}
+
+/* Progress bars (objectifs) */
+.report-progress {
+  height: 7px;
+  border-radius: 999px;
+  background: var(--r-surface-2);
+  overflow: hidden;
+}
+
+.report-progress > span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+}
+
+/* Bar rows (positions, top gestes) */
+.report-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 11.5px;
+  margin-bottom: 7px;
+}
+
+.report-bar-row:last-child {
+  margin-bottom: 0;
+}
+
+.report-bar-track {
+  flex: 1;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--r-surface-2);
+  overflow: hidden;
+}
+
+.report-bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+}
+
+/* Journal des interventions */
+.report-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 10px;
+}
+
+.report-table th {
+  text-align: left;
+  font-size: 8.5px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--r-text-3);
+  border-bottom: 1.5px solid var(--r-border);
+  padding: 5px 7px;
+  white-space: nowrap;
+}
+
+.report-table td {
+  padding: 5px 7px;
+  border-bottom: 1px solid var(--r-border);
+  vertical-align: top;
+  color: var(--r-text-1);
+}
+
+.report-table tbody tr:nth-child(even) {
+  background: #f8fafc;
+}
+
+.report-footer {
+  margin-top: 26px;
+  padding-top: 12px;
+  border-top: 1px solid var(--r-border);
+  font-size: 9.5px;
+  color: var(--r-text-3);
+  text-align: center;
+  line-height: 1.5;
+}
+
+/* Écran : adaptation petits écrans (saisie/consultation mobile) */
+@media screen and (max-width: 720px) {
+  .report-paper {
+    padding: 6mm;
+    margin: 0;
+    max-width: none;
+    border-radius: 0;
+    box-shadow: none;
+  }
+  .report-header {
+    flex-direction: column;
+  }
+  .report-intern {
+    text-align: left;
+    white-space: normal;
+  }
+  .report-kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .report-table {
+    font-size: 9.5px;
+  }
+}
+
+/* Impression / export PDF */
+@media print {
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
+
+  html,
+  body {
+    background: #fff !important;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  .report-shell {
+    background: #fff !important;
+    min-height: 0 !important;
+    padding: 0 !important;
+  }
+
+  .report-paper {
+    box-shadow: none;
+    border-radius: 0;
+    max-width: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .report-kpi-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  .report-table thead {
+    display: table-header-group;
+  }
+
+  .report-table tr {
+    break-inside: avoid;
+  }
+
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+}
