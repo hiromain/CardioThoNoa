@@ -55,7 +55,7 @@ export const useAuthStore = create((set, get) => ({
       options: { shouldCreateUser: true },
     });
     if (error) {
-      set({ flow: 'idle', error: traduireErreur(error) });
+      set({ flow: 'idle', error: traduireErreurEmail(error) });
       return false;
     }
     set({ flow: 'code-sent' });
@@ -77,7 +77,7 @@ export const useAuthStore = create((set, get) => ({
       type: 'email',
     });
     if (error) {
-      set({ flow: 'code-sent', error: traduireErreur(error) });
+      set({ flow: 'code-sent', error: traduireErreurCode(error) });
       return false;
     }
     // onAuthStateChange basculera le status à 'signed-in'.
@@ -106,10 +106,16 @@ export const useAuthStore = create((set, get) => ({
   },
 }));
 
-function traduireErreur(error) {
+function traduireErreurEmail(error) {
+  const msg = error?.message || '';
+  if (/rate|limit|too many/i.test(msg)) return 'Trop de tentatives. Réessaie dans un instant.';
+  if (/email/i.test(msg)) return 'Adresse email invalide.';
+  return 'Une erreur est survenue. Réessaie.';
+}
+
+function traduireErreurCode(error) {
   const msg = error?.message || '';
   if (/invalid|expired|token/i.test(msg)) return 'Code invalide ou expiré.';
   if (/rate|limit|too many/i.test(msg)) return 'Trop de tentatives. Réessaie dans un instant.';
-  if (/email/i.test(msg)) return 'Adresse email invalide.';
   return 'Une erreur est survenue. Réessaie.';
 }
