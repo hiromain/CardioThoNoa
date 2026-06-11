@@ -58,6 +58,22 @@ existante.
 - `npm run dev` — serveur de dev (port 5173)
 - `npm run build` / `npm run preview`
 
+## Git & Synchronisation GitHub
+**Bonnes pratiques de push :**
+- Après chaque **modification importante** (nouvelle fonctionnalité, bug fix, refactoring). 
+  *Exemples: ajouter un filtre, corriger un écran blanc, améliorer le perf.*
+- **Régulièrement** au moins une fois par semaine, même pour des petits changements.
+- À la fin de la journée de travail si tu as fait des modifs.
+
+**Pourquoi ?** Cela sert de sauvegarde — si quelque chose se casse, on peut revenir en arrière. 
+Pas besoin d'être perfectionniste sur les messages de commit : `Correction d'un bug` ou 
+`Amélioration du dashboard` suffisent.
+
+**Commande simple pour tout pousser :**
+```bash
+git add . && git commit -m "Description courte de la modif" && git push
+```
+
 ## Points d'attention pour la suite
 - Vérifier la cohérence avec `Untitled-1.md` (filtres contextuels par
   service/semestre actif, listes filtrées selon le type de chirurgie, etc.)
