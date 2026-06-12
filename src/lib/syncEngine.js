@@ -34,8 +34,12 @@ function snapshotPayload(state, userId) {
 
 export async function pushSnapshot() {
   if (!isSupabaseConfigured) return;
-  const user = useAuthStore.getState().user;
+  const auth = useAuthStore.getState();
+  const user = auth.user;
   if (!user || isLocalUser(user)) return;
+  // Paywall : un compte gratuit (non payé) ne synchronise jamais — son cloud
+  // reste vide. Seul un compte ayant payé pousse ses données.
+  if (!auth.isPaid) return;
   useStore.getState().setSyncMeta({ syncStatus: 'syncing' });
   const { error } = await supabase
     .from('app_data')
@@ -84,13 +88,38 @@ export async function triggerManualSync() {
   await pushSnapshot();
 }
 
+// À appeler une fois l'achat confirmé (isPaid passé à true). On efface l'aperçu
+// d'exemple affiché pendant la période gratuite pour repartir d'un compte vide
+// propre, puis on crée la ligne cloud de l'utilisateur.
+export async function completePurchase() {
+  useStore.getState().clearAll();
+  await pushSnapshot();
+}
+
 async function handleSignIn(userId) {
+  const auth = useAuthStore.getState();
+
+  // Charger le droit d'accès AVANT de décider quoi charger (payé vs gratuit).
+  const isPaid = await auth.refreshEntitlement();
+
+  // Démo / dev : données locales déjà en place, aucune interaction cloud.
+  const user = auth.user;
+  if (!user || isLocalUser(user)) return;
+
   const lastUserId = localStorage.getItem(LAST_USER_KEY);
   if (lastUserId && lastUserId !== userId) {
     useStore.getState().clearAll();
   }
   localStorage.setItem(LAST_USER_KEY, userId);
 
+  if (!isPaid) {
+    // Compte gratuit : aperçu d'exemple en lecture seule. Rien n'est poussé
+    // (pushSnapshot court-circuite sur !isPaid), le cloud reste vide.
+    useStore.getState().resetDemo();
+    return;
+  }
+
+  // Compte payé : le cloud fait foi.
   const cloud = await pullSnapshot();
   if (cloud) {
     useStore.getState().applyCloudSnapshot(cloud);
@@ -99,7 +128,7 @@ async function handleSignIn(userId) {
       syncStatus: 'idle',
     });
   } else {
-    // Nouveau compte sans ligne cloud : on pousse l'état local pour créer la ligne.
+    // Nouveau compte payé sans ligne cloud : on pousse l'état local pour la créer.
     await pushSnapshot();
   }
 }
@@ -109,7 +138,11 @@ async function handleSignIn(userId) {
 // place avant que la promesse ne se résolve — l'ordre synchrone garantit ça).
 export function startSyncEngine() {
   useStore.subscribe((state, prev) => {
-    if (useAuthStore.getState().status !== 'signed-in') return;
+    const auth = useAuthStore.getState();
+    if (auth.status !== 'signed-in') return;
+    // Comptes non payés (démo, gratuit) : lecture seule, on ne planifie aucune
+    // synchronisation (évite un statut « pending » qui ne se résoudrait jamais).
+    if (!auth.isPaid) return;
     const changed = SYNC_FIELDS.some((k) => state[k] !== prev[k]);
     if (changed) {
       useStore.getState().setSyncMeta({ syncStatus: 'pending' });

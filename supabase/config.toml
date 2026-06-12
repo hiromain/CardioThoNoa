@@ -1,0 +1,14 @@
+# CardioThoNoa — Configuration Supabase CLI.
+# Renseigner le project_id avec la référence du projet (dashboard → Settings).
+project_id = "cardiothonoa"
+
+# Le webhook Stripe est appelé par Stripe (pas par un utilisateur connecté) :
+# il ne doit donc PAS exiger de JWT Supabase. La signature Stripe sert de preuve
+# d'authenticité (voir functions/stripe-webhook).
+[functions.stripe-webhook]
+verify_jwt = false
+
+# La création de session Checkout est appelée depuis l'app par un utilisateur
+# connecté : le JWT est requis (valeur par défaut, explicitée ici pour mémoire).
+[functions.create-checkout-session]
+verify_jwt = true

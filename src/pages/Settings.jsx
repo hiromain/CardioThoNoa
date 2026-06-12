@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Pencil,
@@ -29,11 +29,23 @@ import {
   SlidersHorizontal,
   ListChecks,
   Database,
+  Smartphone,
+  Share,
+  MoreVertical,
+  SquarePlus,
+  Lock,
+  BadgeCheck,
 } from 'lucide-react';
 import { useData } from '../store/hooks';
 import { useStore } from '../store/useStore';
 import { useAuthStore } from '../store/useAuthStore';
-import { triggerManualSync } from '../lib/syncEngine';
+import { triggerManualSync, completePurchase } from '../lib/syncEngine';
+import {
+  canPromptInstall,
+  subscribeInstallPrompt,
+  promptInstall,
+  isStandalone,
+} from '../lib/installPrompt';
 import {
   APP_VERSION,
   getSpecialty,
@@ -85,9 +97,39 @@ export default function Settings() {
 
   const user = useAuthStore((s) => s.user);
   const isDemo = useAuthStore((s) => s.isDemo);
+  const isPaid = useAuthStore((s) => s.isPaid);
   const signOut = useAuthStore((s) => s.signOut);
   const setAuthView = useAuthStore((s) => s.setAuthView);
   const configured = useAuthStore((s) => s.configured);
+  const startCheckout = useAuthStore((s) => s.startCheckout);
+  const refreshEntitlement = useAuthStore((s) => s.refreshEntitlement);
+
+  // Retour de Stripe Checkout (?achat=succes) : le webhook bascule is_paid avec
+  // un léger délai → on poll le droit d'accès, puis on initialise le compte payé.
+  const [purchaseState, setPurchaseState] = useState(null); // null | 'pending' | 'done'
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('achat') !== 'succes' || isDemo) return;
+    let cancelled = false;
+    setPurchaseState('pending');
+    (async () => {
+      for (let i = 0; i < 8 && !cancelled; i++) {
+        const paid = await refreshEntitlement();
+        if (paid) {
+          await completePurchase(); // efface l'aperçu, crée la ligne cloud
+          if (!cancelled) setPurchaseState('done');
+          break;
+        }
+        await new Promise((r) => setTimeout(r, 1500));
+      }
+      // Nettoie le paramètre d'URL.
+      window.history.replaceState({}, '', window.location.pathname);
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const fileRef = useRef(null);
   const [modal, setModal] = useState({ type: null, item: null });
@@ -95,6 +137,17 @@ export default function Settings() {
   const [alert, setAlert] = useState(null);
   const [pendingImport, setPendingImport] = useState(null);
   const [reportPicker, setReportPicker] = useState(false);
+  const [canInstall, setCanInstall] = useState(canPromptInstall());
+  const [installed, setInstalled] = useState(isStandalone());
+
+  useEffect(
+    () =>
+      subscribeInstallPrompt(() => {
+        setCanInstall(canPromptInstall());
+        setInstalled(isStandalone());
+      }),
+    []
+  );
 
   const activeSemesters = [...data.semesters]
     .filter((s) => !s.archived)
@@ -219,8 +272,53 @@ export default function Settings() {
                 </button>
               </div>
             </Card>
+          ) : !isPaid ? (
+            <Card padding="p-0">
+              <div className="flex items-start gap-3 p-4 border-b border-line">
+                <div className="w-9 h-9 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
+                  <Lock size={18} className="text-primary" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-[15px] font-medium text-ink-1">Version découverte</div>
+                  <div className="text-xs text-ink-3 mt-0.5 leading-relaxed">
+                    {purchaseState === 'pending'
+                      ? 'Activation de ton accès en cours…'
+                      : "Ton compte est en lecture seule. Débloque l'enregistrement (paiement unique, à vie) pour saisir et synchroniser tes propres données."}
+                  </div>
+                </div>
+              </div>
+              <div className="p-4 flex flex-col gap-2.5">
+                <Button
+                  fullWidth
+                  onClick={() => startCheckout()}
+                  disabled={purchaseState === 'pending'}
+                >
+                  <Lock size={16} />
+                  {purchaseState === 'pending' ? 'Activation…' : "Débloquer l'enregistrement"}
+                </Button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setConfirm({
+                      title: 'Se déconnecter ?',
+                      message: 'Tu devras te reconnecter pour revenir.',
+                      confirmLabel: 'Se déconnecter',
+                      onConfirm: () => signOut(),
+                    })
+                  }
+                  className="text-[13px] text-ink-3 font-medium text-center"
+                >
+                  Se déconnecter
+                </button>
+              </div>
+            </Card>
           ) : (
             <Card padding="p-0">
+              {purchaseState === 'done' && (
+                <div className="flex items-center gap-2 p-3 bg-success/10 border-b border-line text-[13px] text-success font-medium">
+                  <BadgeCheck size={16} /> Accès complet activé. Merci !
+                </div>
+              )}
               <div className="flex items-center gap-3 p-4 border-b border-line">
                 <SyncStatusIcon status={syncStatus} />
                 <div className="flex-1 min-w-0">
@@ -346,6 +444,68 @@ export default function Settings() {
               <Toggle checked={blocMode} onChange={setBlocMode} />
             </div>
           </Card>
+        </Accordion>
+
+        {/* Installation sur l'écran d'accueil */}
+        <Accordion
+          icon={<Smartphone size={18} className="text-primary" />}
+          title="Installer l'application"
+          subtitle={installed ? 'Déjà installée' : 'Ajouter à l\'écran d\'accueil'}
+        >
+          {installed ? (
+            <p className="text-[13px] text-success flex items-center gap-1.5 px-1">
+              <Check size={15} /> L'application est installée sur cet appareil.
+            </p>
+          ) : (
+            <>
+              {canInstall && (
+                <Button fullWidth onClick={() => promptInstall()}>
+                  <Download size={16} /> Installer l'application
+                </Button>
+              )}
+              <Card padding="p-0">
+                <div className="flex items-start gap-3 p-4 border-b border-line">
+                  <div className="w-9 h-9 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
+                    <Share size={18} className="text-primary" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[15px] font-medium text-ink-1">Sur iPhone (Safari)</div>
+                    <div className="text-xs text-ink-3 mt-0.5 leading-relaxed">
+                      Appuie sur l'icône <strong>Partager</strong> (carré avec une flèche vers le
+                      haut) dans la barre du bas, puis choisis{' '}
+                      <strong>« Sur l'écran d'accueil »</strong>.
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3 p-4">
+                  <div className="w-9 h-9 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
+                    <MoreVertical size={18} className="text-primary" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[15px] font-medium text-ink-1">Sur Android (Chrome)</div>
+                    <div className="text-xs text-ink-3 mt-0.5 leading-relaxed">
+                      {canInstall ? (
+                        <>
+                          Ou appuie sur le menu <strong>⋮</strong> en haut à droite, puis choisis{' '}
+                          <strong>« Installer l'application »</strong>.
+                        </>
+                      ) : (
+                        <>
+                          Appuie sur le menu <strong>⋮</strong> en haut à droite, puis choisis{' '}
+                          <strong>« Ajouter à l'écran d'accueil »</strong> ou{' '}
+                          <strong>« Installer l'application »</strong>.
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </Card>
+              <p className="text-[11px] text-ink-3 flex items-center gap-1.5 px-1">
+                <SquarePlus size={13} /> Une fois ajoutée, l'application s'ouvre en plein écran
+                comme une vraie app, sans la barre du navigateur.
+              </p>
+            </>
+          )}
         </Accordion>
 
         {/* Gestion des listes */}

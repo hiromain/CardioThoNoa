@@ -21,7 +21,12 @@ export const supabase = createClient(
     auth: {
       persistSession: true,
       autoRefreshToken: true,
-      detectSessionInUrl: false,
+      // OAuth (Google) renvoie un code dans l'URL au retour de redirection :
+      // detectSessionInUrl + flowType PKCE permettent à supabase-js d'échanger
+      // ce code automatiquement au chargement. Sans incidence sur l'OTP email
+      // (basé sur verifyOtp, sans passage par l'URL).
+      detectSessionInUrl: true,
+      flowType: 'pkce',
     },
   }
 );

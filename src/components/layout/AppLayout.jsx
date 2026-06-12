@@ -8,6 +8,7 @@ import { getSpecialty } from '../../data/constants';
 import { BottomNav } from './BottomNav';
 import { BackgroundArt } from './BackgroundArt';
 import { DemoBanner } from './DemoBanner';
+import { UpgradeModal } from '../billing/UpgradeModal';
 
 function shouldHideNav(pathname) {
   return pathname === '/interventions/nouvelle' || pathname.endsWith('/modifier');
@@ -16,6 +17,11 @@ function shouldHideNav(pathname) {
 export function AppLayout() {
   const theme = useStore((s) => s.theme);
   const isDemo = useAuthStore((s) => s.isDemo);
+  const isPaid = useAuthStore((s) => s.isPaid);
+  const entitlementLoaded = useAuthStore((s) => s.entitlementLoaded);
+  // Bandeau « lecture seule » : démo (sans compte) ou compte gratuit (connecté,
+  // non payé). On attend le chargement du droit d'accès pour éviter un flash.
+  const showLockedBanner = isDemo || (entitlementLoaded && !isPaid);
   const { pathname } = useLocation();
   const hideNav = shouldHideNav(pathname);
 
@@ -38,10 +44,11 @@ export function AppLayout() {
         className="relative z-10 w-full max-w-app min-h-screen flex flex-col"
         style={{ paddingBottom: hideNav ? 0 : 88 }}
       >
-        {isDemo && <DemoBanner />}
+        {showLockedBanner && <DemoBanner isDemo={isDemo} />}
         <Outlet />
         {!hideNav && <BottomNav />}
       </div>
+      <UpgradeModal />
     </div>
   );
 }

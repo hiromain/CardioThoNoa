@@ -34,7 +34,37 @@ export const useAuthStore = create((set, get) => ({
   authView: 'login',
   configured: isSupabaseConfigured,
 
+  // ── Droit d'accès (achat unique) ──────────────────────────────────────────
+  // `isPaid` est la clé du paywall : seul un compte ayant payé peut écrire des
+  // données (voir le garde dans useStore.js) et synchroniser (voir syncEngine).
+  // Démo et compte gratuit ont isPaid=false → lecture seule.
+  isPaid: false,
+  entitlementLoaded: false,
+  // Modale d'upgrade globale (ouverte par le garde d'écriture).
+  upgradeOpen: false,
+
   setAuthView: (view) => set({ authView: view, error: null, noAccount: false }),
+
+  openUpgrade: () => set({ upgradeOpen: true }),
+  closeUpgrade: () => set({ upgradeOpen: false }),
+
+  // Recharge le droit d'accès depuis Supabase (table `entitlements`). Appelée
+  // après connexion et au retour d'un achat. Sans ligne → non payé.
+  refreshEntitlement: async () => {
+    const user = get().user;
+    if (!isSupabaseConfigured || !user || isLocalUser(user)) {
+      set({ isPaid: false, entitlementLoaded: true });
+      return false;
+    }
+    const { data, error } = await supabase
+      .from('entitlements')
+      .select('is_paid')
+      .eq('user_id', user.id)
+      .maybeSingle();
+    const isPaid = !error && !!data?.is_paid;
+    set({ isPaid, entitlementLoaded: true });
+    return isPaid;
+  },
 
   // ── Démarrage ───────────────────────────────────────────────────────────────
   init: () => {
@@ -108,6 +138,48 @@ export const useAuthStore = create((set, get) => ({
   // Revenir à la saisie de l'email (depuis l'écran « code »).
   resetFlow: () => set({ flow: 'idle', error: null, noAccount: false }),
 
+  // ── Connexion Google (OAuth) ────────────────────────────────────────────────
+  // Redirige vers Google ; au retour, supabase-js échange le code (PKCE) et
+  // onAuthStateChange bascule le status à 'signed-in'. Nécessite l'activation du
+  // provider Google côté dashboard Supabase.
+  signInWithGoogle: async () => {
+    if (!isSupabaseConfigured) {
+      set({ error: 'Configuration Supabase manquante.' });
+      return false;
+    }
+    set({ error: null });
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: window.location.origin },
+    });
+    if (error) {
+      set({ error: 'Connexion Google indisponible. Réessaie.' });
+      return false;
+    }
+    return true;
+  },
+
+  // ── Achat (Stripe Checkout) ──────────────────────────────────────────────────
+  // Demande une session Checkout à la fonction Edge puis redirige vers Stripe.
+  startCheckout: async () => {
+    const user = get().user;
+    if (!isSupabaseConfigured || !user || isLocalUser(user)) {
+      // Pas de compte réel (démo) : on bascule vers la création de compte.
+      set({ authView: 'signup', upgradeOpen: false });
+      return false;
+    }
+    const origin = window.location.origin;
+    const { data, error } = await supabase.functions.invoke('create-checkout-session', {
+      body: { origin },
+    });
+    if (error || !data?.url) {
+      set({ error: 'Paiement indisponible pour le moment. Réessaie.' });
+      return false;
+    }
+    window.location.href = data.url;
+    return true;
+  },
+
   // ── Connexion dev (sans Supabase, sans email) ───────────────────────────────
   // Disponible uniquement en mode développement (npm run dev), pour éviter de
   // repasser par le flow OTP à chaque rechargement. Utilise un faux user dont
@@ -116,6 +188,9 @@ export const useAuthStore = create((set, get) => ({
     set({
       status: 'signed-in',
       user: { id: 'dev-local', email: 'dev@local' },
+      // Accès complet en dev pour pouvoir tester l'écriture sans paiement.
+      isPaid: true,
+      entitlementLoaded: true,
       flow: 'idle',
       error: null,
     });
@@ -142,6 +217,9 @@ export const useAuthStore = create((set, get) => ({
       status: 'signed-out',
       user: null,
       isDemo: false,
+      isPaid: false,
+      entitlementLoaded: false,
+      upgradeOpen: false,
       flow: 'idle',
       email: '',
       error: null,
