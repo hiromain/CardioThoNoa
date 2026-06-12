@@ -90,8 +90,8 @@ export default function NewIntervention() {
     [data, form.mainProcedureId]
   );
   const hasDefaultSteps = defaultInternSteps.length > 0;
-  const internProcsToShow = hasDefaultSteps && !showAllIntern ? defaultInternSteps : internProcs;
-  const hasExtraSteps = hasDefaultSteps && internProcs.length > defaultInternSteps.length;
+  const internProcsToShow = showAllIntern ? internProcs : defaultInternSteps;
+  const hasExtraSteps = internProcs.length > defaultInternSteps.length;
 
   function set(key, value) {
     setForm((f) => ({ ...f, [key]: value }));
@@ -236,6 +236,13 @@ export default function NewIntervention() {
           <div className="text-[12px] mb-2.5" style={{ color: cfg.color, opacity: 0.8 }}>
             Ce que vous avez personnellement réalisé — compte pour votre carnet de formation.
           </div>
+          {internProcsToShow.length === 0 && (
+            <div className="text-[12px] mb-2.5" style={{ color: cfg.color, opacity: 0.7 }}>
+              {hasDefaultSteps
+                ? 'Aucun sous-geste sélectionné.'
+                : 'Sélectionnez une intervention principale pour afficher sa checklist, ou affichez tous les gestes ci-dessous.'}
+            </div>
+          )}
           <ProcedureSelector
             procedures={internProcsToShow}
             selectedIds={form.internProcedures}
@@ -251,7 +258,7 @@ export default function NewIntervention() {
               className="mt-2.5 text-[12px] font-bold underline underline-offset-2"
               style={{ color: cfg.color }}
             >
-              {showAllIntern ? '− Réduire' : '+ Autres gestes'}
+              {showAllIntern ? '− Réduire' : '+ Afficher tous les gestes'}
             </button>
           )}
         </div>
