@@ -1,34 +1,45 @@
 // CardioThoNoa — Écran de connexion (OTP par email).
 //
-// Deux étapes : saisie de l'email → réception d'un code à 6 chiffres → saisie
-// du code. La bascule vers l'application est gérée par AuthGate via le status
-// du store d'auth (onAuthStateChange).
+// Deux onglets : « Se connecter » (compte existant) et « Créer un compte »
+// (nouvelle adresse, shouldCreateUser=true). Dans les deux cas : saisie de
+// l'email → réception d'un code à 6 chiffres → saisie du code. La bascule vers
+// l'application est gérée par AuthGate via le status du store d'auth
+// (onAuthStateChange).
+//
+// Un mode démo (sans compte, données d'exemple, 100 % local) est accessible
+// depuis cet écran via enterDemo().
 import { useState } from 'react';
-import { HeartPulse, Mail, KeyRound, ArrowLeft, AlertTriangle } from 'lucide-react';
+import { HeartPulse, Mail, KeyRound, ArrowLeft, ArrowRight, AlertTriangle, Sparkles } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Field';
+import { SegmentedControl } from '../components/ui/SegmentedControl';
 
 export default function Login() {
   const configured = useAuthStore((s) => s.configured);
   const flow = useAuthStore((s) => s.flow);
   const error = useAuthStore((s) => s.error);
+  const noAccount = useAuthStore((s) => s.noAccount);
   const sentEmail = useAuthStore((s) => s.email);
+  const authView = useAuthStore((s) => s.authView);
+  const setAuthView = useAuthStore((s) => s.setAuthView);
   const sendOtp = useAuthStore((s) => s.sendOtp);
   const verifyOtp = useAuthStore((s) => s.verifyOtp);
   const resetFlow = useAuthStore((s) => s.resetFlow);
   const devSignIn = useAuthStore((s) => s.devSignIn);
+  const enterDemo = useAuthStore((s) => s.enterDemo);
 
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
 
+  const isSignup = authView === 'signup';
   const codeStep = flow === 'code-sent' || flow === 'verifying';
   const busy = flow === 'sending' || flow === 'verifying';
 
   async function onSubmitEmail(e) {
     e.preventDefault();
-    await sendOtp(email);
+    await sendOtp(email, { allowSignup: isSignup });
   }
 
   async function onSubmitCode(e) {
@@ -94,7 +105,7 @@ export default function Login() {
 
               <Button type="submit" fullWidth size="lg" disabled={busy || code.length < 6}>
                 <KeyRound size={16} />
-                {flow === 'verifying' ? 'Vérification…' : 'Se connecter'}
+                {flow === 'verifying' ? 'Vérification…' : isSignup ? 'Créer mon compte' : 'Se connecter'}
               </Button>
 
               <button
@@ -108,34 +119,80 @@ export default function Login() {
           </Card>
         ) : (
           <Card>
-            <form onSubmit={onSubmitEmail} className="flex flex-col gap-4">
-              <div className="text-center">
-                <div className="text-[15px] font-bold text-ink-1">Connexion</div>
-                <p className="text-[13px] text-ink-2 mt-1">
-                  Entre ton adresse email pour recevoir un code de connexion.
-                </p>
-              </div>
-
-              <Input
-                label="Adresse email"
-                type="email"
-                inputMode="email"
-                autoComplete="email"
-                placeholder="noa@exemple.fr"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                autoFocus
+            <div className="flex flex-col gap-4">
+              <SegmentedControl
+                options={[
+                  { value: 'login', label: 'Se connecter' },
+                  { value: 'signup', label: 'Créer un compte' },
+                ]}
+                value={authView}
+                onChange={setAuthView}
               />
 
-              {error && <ErrorLine message={error} />}
+              <form onSubmit={onSubmitEmail} className="flex flex-col gap-4">
+                <div className="text-center">
+                  <div className="text-[15px] font-bold text-ink-1">
+                    {isSignup ? 'Crée ton compte' : 'Connexion'}
+                  </div>
+                  <p className="text-[13px] text-ink-2 mt-1">
+                    {isSignup
+                      ? "Saisis ton adresse email : un code à 6 chiffres te permettra de créer ton compte et d'accéder à l'application."
+                      : 'Entre ton adresse email pour recevoir un code de connexion.'}
+                  </p>
+                </div>
 
-              <Button type="submit" fullWidth size="lg" disabled={busy || !email.trim()}>
-                <Mail size={16} />
-                {flow === 'sending' ? 'Envoi…' : 'Recevoir un code'}
-              </Button>
-            </form>
+                <Input
+                  label="Adresse email"
+                  type="email"
+                  inputMode="email"
+                  autoComplete="email"
+                  placeholder="noa@exemple.fr"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  autoFocus
+                />
+
+                {error && <ErrorLine message={error} />}
+                {noAccount && (
+                  <div className="flex flex-col gap-2 text-[13px] bg-surface-2 rounded-md px-3 py-2.5">
+                    <div className="flex items-center gap-2 text-ink-2">
+                      <AlertTriangle size={15} className="shrink-0 text-warning" />
+                      <span>Aucun compte n'existe avec cette adresse.</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setAuthView('signup')}
+                      className="flex items-center gap-1 text-primary font-semibold pl-[23px]"
+                    >
+                      Créer un compte avec cette adresse <ArrowRight size={14} />
+                    </button>
+                  </div>
+                )}
+
+                <Button type="submit" fullWidth size="lg" disabled={busy || !email.trim()}>
+                  <Mail size={16} />
+                  {flow === 'sending' ? 'Envoi…' : isSignup ? 'Créer mon compte' : 'Recevoir un code'}
+                </Button>
+              </form>
+            </div>
           </Card>
         )}
+
+        {/* Mode démo (sans compte) */}
+        <button
+          type="button"
+          onClick={enterDemo}
+          className="mt-4 flex items-center gap-3 p-4 rounded-lg border-2 border-dashed border-line text-left active:scale-[0.99] transition-transform"
+        >
+          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+            <Sparkles size={18} className="text-primary" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-[14px] font-bold text-ink-1">Découvrir sans compte</div>
+            <div className="text-xs text-ink-3">Explorer l'application avec des données d'exemple</div>
+          </div>
+          <ArrowRight size={16} className="text-ink-3 shrink-0" />
+        </button>
 
         {import.meta.env.DEV && (
           <button

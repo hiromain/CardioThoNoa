@@ -8,7 +8,7 @@
 // strictement locales. Voir `snapshotPayload` ci-dessous (pas de `patients`).
 import { supabase, isSupabaseConfigured } from './supabaseClient';
 import { useStore } from '../store/useStore';
-import { useAuthStore } from '../store/useAuthStore';
+import { useAuthStore, isLocalUser } from '../store/useAuthStore';
 
 const SYNC_DEBOUNCE_MS = 4000;
 const LAST_USER_KEY = 'cardiothonoa-last-user-id';
@@ -35,7 +35,7 @@ function snapshotPayload(state, userId) {
 export async function pushSnapshot() {
   if (!isSupabaseConfigured) return;
   const user = useAuthStore.getState().user;
-  if (!user || user.id === 'dev-local') return;
+  if (!user || isLocalUser(user)) return;
   useStore.getState().setSyncMeta({ syncStatus: 'syncing' });
   const { error } = await supabase
     .from('app_data')
@@ -50,7 +50,7 @@ export async function pushSnapshot() {
 export async function pullSnapshot() {
   if (!isSupabaseConfigured) return null;
   const user = useAuthStore.getState().user;
-  if (!user || user.id === 'dev-local') return null;
+  if (!user || isLocalUser(user)) return null;
   const { data, error } = await supabase
     .from('app_data')
     .select('*')

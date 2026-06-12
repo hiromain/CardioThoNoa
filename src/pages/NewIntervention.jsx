@@ -10,6 +10,8 @@ import {
   proceduresForType,
   serviceForSemester,
   surgeonName,
+  internStepsForMainProcedure,
+  procLabel,
 } from '../lib/queries';
 import { todayISO, formatDate } from '../lib/dates';
 import { TopBar } from '../components/layout/TopBar';
@@ -44,6 +46,7 @@ export default function NewIntervention() {
         patientId: editing.patientId,
         date: editing.date,
         surgeonId: editing.surgeonId,
+        mainProcedureId: editing.mainProcedureId || '',
         patientProcedures: editing.patientProcedures || [],
         internProcedures: editing.internProcedures || [],
         position: editing.position || POSITIONS[0],
@@ -58,6 +61,7 @@ export default function NewIntervention() {
       patientId: null,
       date: todayISO(),
       surgeonId: '',
+      mainProcedureId: '',
       patientProcedures: [],
       internProcedures: [],
       position: POSITIONS[0],
@@ -65,6 +69,7 @@ export default function NewIntervention() {
     };
   });
   const [saved, setSaved] = useState(false);
+  const [showAllIntern, setShowAllIntern] = useState(false);
 
   const service = form.semesterId ? serviceForSemester(data, form.semesterId) : null;
   const cfg = getSpecialty(service?.type);
@@ -80,6 +85,13 @@ export default function NewIntervention() {
     () => (service ? proceduresForType(data, service.type, 'intern') : []),
     [data, service]
   );
+  const defaultInternSteps = useMemo(
+    () => internStepsForMainProcedure(data, form.mainProcedureId),
+    [data, form.mainProcedureId]
+  );
+  const hasDefaultSteps = defaultInternSteps.length > 0;
+  const internProcsToShow = hasDefaultSteps && !showAllIntern ? defaultInternSteps : internProcs;
+  const hasExtraSteps = hasDefaultSteps && internProcs.length > defaultInternSteps.length;
 
   function set(key, value) {
     setForm((f) => ({ ...f, [key]: value }));
@@ -91,9 +103,16 @@ export default function NewIntervention() {
       ...f,
       semesterId: semId,
       surgeonId: '',
+      mainProcedureId: '',
       patientProcedures: [],
       internProcedures: [],
     }));
+    setShowAllIntern(false);
+  }
+
+  function changeMainProcedure(mainProcedureId) {
+    setForm((f) => ({ ...f, mainProcedureId, internProcedures: [] }));
+    setShowAllIntern(false);
   }
 
   const valid = form.semesterId && form.patientId && form.surgeonId && form.date;
@@ -104,6 +123,7 @@ export default function NewIntervention() {
       patientId: form.patientId,
       date: form.date,
       surgeonId: form.surgeonId,
+      mainProcedureId: form.mainProcedureId || null,
       patientProcedures: form.patientProcedures,
       internProcedures: form.internProcedures,
       position: form.position,
@@ -171,6 +191,15 @@ export default function NewIntervention() {
           />
         </FormSection>
 
+        <FormSection title="Intervention principale">
+          <Select
+            placeholder="Aucune (facultatif)"
+            value={form.mainProcedureId}
+            onChange={(e) => changeMainProcedure(e.target.value)}
+            options={patientProcs.map((p) => ({ value: p.id, label: procLabel(p) }))}
+          />
+        </FormSection>
+
         <FormSection
           title="Gestes sur le patient"
           icon={<Stethoscope size={13} className="text-ink-3" />}
@@ -208,13 +237,23 @@ export default function NewIntervention() {
             Ce que vous avez personnellement réalisé — compte pour votre carnet de formation.
           </div>
           <ProcedureSelector
-            procedures={internProcs}
+            procedures={internProcsToShow}
             selectedIds={form.internProcedures}
             onChange={(ids) => set('internProcedures', ids)}
             color={cfg.color}
             light="var(--surface)"
             variant="accent"
           />
+          {hasExtraSteps && (
+            <button
+              type="button"
+              onClick={() => setShowAllIntern((v) => !v)}
+              className="mt-2.5 text-[12px] font-bold underline underline-offset-2"
+              style={{ color: cfg.color }}
+            >
+              {showAllIntern ? '− Réduire' : '+ Autres gestes'}
+            </button>
+          )}
         </div>
 
         <FormSection title="Position de l'interne">

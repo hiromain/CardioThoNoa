@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
-import { SCOPES, SERVICE_TYPES } from '../../data/constants';
+import { SCOPES, SERVICE_TYPES, getSpecialty } from '../../data/constants';
 import { Modal } from '../ui/Modal';
 import { Input, Select } from '../ui/Field';
 import { Button } from '../ui/Button';
+import { ProcedureSelector } from '../ProcedureSelector';
 
-const empty = { name: '', abbr: '', scope: 'both', serviceType: 'cardiaque' };
+const empty = { name: '', abbr: '', scope: 'both', serviceType: 'cardiaque', internSteps: [] };
 
-export function ProcedureTypeFormModal({ open, onClose, initial, onSubmit }) {
+export function ProcedureTypeFormModal({ open, onClose, initial, onSubmit, allProcedures = [] }) {
   const [form, setForm] = useState(empty);
 
   useEffect(() => {
@@ -18,6 +19,7 @@ export function ProcedureTypeFormModal({ open, onClose, initial, onSubmit }) {
             abbr: initial.abbr || '',
             scope: initial.scope || 'both',
             serviceType: initial.serviceType || 'cardiaque',
+            internSteps: initial.internSteps || [],
           }
         : empty
     );
@@ -31,9 +33,19 @@ export function ProcedureTypeFormModal({ open, onClose, initial, onSubmit }) {
       abbr: form.abbr.trim() || form.name.trim(),
       scope: form.scope,
       serviceType: form.serviceType,
+      internSteps: form.internSteps,
     });
     onClose();
   }
+
+  const showInternSteps = form.scope === 'patient' || form.scope === 'both';
+  const stepCandidates = allProcedures.filter(
+    (p) =>
+      p.id !== initial?.id &&
+      (p.scope === 'intern' || p.scope === 'both') &&
+      (p.serviceType === form.serviceType || p.serviceType === 'autre')
+  );
+  const specialty = getSpecialty(form.serviceType);
 
   return (
     <Modal
@@ -79,6 +91,21 @@ export function ProcedureTypeFormModal({ open, onClose, initial, onSubmit }) {
           onChange={(e) => setForm((f) => ({ ...f, scope: e.target.value }))}
           options={SCOPES}
         />
+        {showInternSteps && (
+          <div>
+            <label className="block text-[13px] font-semibold text-ink-2 mb-2">
+              Étapes réalisables par l'interne
+            </label>
+            <ProcedureSelector
+              procedures={stepCandidates}
+              selectedIds={form.internSteps}
+              onChange={(ids) => setForm((f) => ({ ...f, internSteps: ids }))}
+              color={specialty.color}
+              light={specialty.light}
+              emptyHint="Aucun sous-geste disponible pour ce service."
+            />
+          </div>
+        )}
       </div>
     </Modal>
   );

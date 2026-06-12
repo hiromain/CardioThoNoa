@@ -74,6 +74,7 @@ export default function InterventionDetail() {
   }
 
   const item = resolveIntervention(data, raw);
+  const mainProcedure = byId(data.procedureTypes, item.mainProcedureId);
   const cfg = item.specialty;
   const age = ageFromDOB(item.patient?.dateOfBirth);
   const pos = getPositionStyle(item.position);
@@ -142,6 +143,19 @@ export default function InterventionDetail() {
                 {item.position}
               </span>
             </Row>
+            {mainProcedure && (
+              <>
+                <Line />
+                <Row label="Intervention principale">
+                  <span
+                    className="text-[12px] font-bold px-2.5 py-1 rounded-pill"
+                    style={{ color: cfg.color, background: cfg.muted }}
+                  >
+                    {procLabel(mainProcedure)}
+                  </span>
+                </Row>
+              </>
+            )}
             {item.semester && (
               <>
                 <Line />

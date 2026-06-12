@@ -53,6 +53,14 @@ export function proceduresForType(state, serviceType, scope) {
     return typeOk && scopeOk;
   });
 }
+// Sous-gestes proposés par défaut à l'interne pour une intervention
+// principale donnée (résolution de `ProcedureType.internSteps`).
+export function internStepsForMainProcedure(state, mainProcedureId) {
+  const main = byId(state.procedureTypes, mainProcedureId);
+  if (!main || !main.internSteps) return [];
+  return main.internSteps.map((id) => byId(state.procedureTypes, id)).filter(Boolean);
+}
+
 export function interventionsForSemester(state, semesterId) {
   return state.interventions
     .filter((i) => i.semesterId === semesterId)
@@ -131,7 +139,8 @@ export function procedureUsageCount(state, id) {
   return state.interventions.filter(
     (i) =>
       (i.patientProcedures || []).includes(id) ||
-      (i.internProcedures || []).includes(id)
+      (i.internProcedures || []).includes(id) ||
+      i.mainProcedureId === id
   ).length;
 }
 export function serviceUsage(state, id) {

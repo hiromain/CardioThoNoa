@@ -23,6 +23,12 @@ import {
   CloudOff,
   RefreshCw,
   LogOut,
+  User,
+  UserPlus,
+  Sparkles,
+  SlidersHorizontal,
+  ListChecks,
+  Database,
 } from 'lucide-react';
 import { useData } from '../store/hooks';
 import { useStore } from '../store/useStore';
@@ -48,6 +54,7 @@ import { buildExport, downloadJSON, exportFilename, parseImport, importSummary }
 import { exportExcel } from '../lib/exportExcel';
 import { TopBar } from '../components/layout/TopBar';
 import { Card } from '../components/ui/Card';
+import { Accordion } from '../components/ui/Accordion';
 import { Badge } from '../components/ui/Badge';
 import { Toggle } from '../components/ui/Toggle';
 import { SegmentedControl } from '../components/ui/SegmentedControl';
@@ -58,6 +65,7 @@ import { ServiceFormModal } from '../components/forms/ServiceFormModal';
 import { SurgeonFormModal } from '../components/forms/SurgeonFormModal';
 import { ProcedureTypeFormModal } from '../components/forms/ProcedureTypeFormModal';
 import { SemesterFormModal } from '../components/forms/SemesterFormModal';
+import { ProfileFormModal } from '../components/forms/ProfileFormModal';
 
 const scopeLabel = (v) => SCOPES.find((s) => s.value === v)?.label || v;
 
@@ -76,7 +84,9 @@ export default function Settings() {
   const store = useStore();
 
   const user = useAuthStore((s) => s.user);
+  const isDemo = useAuthStore((s) => s.isDemo);
   const signOut = useAuthStore((s) => s.signOut);
+  const setAuthView = useAuthStore((s) => s.setAuthView);
   const configured = useAuthStore((s) => s.configured);
 
   const fileRef = useRef(null);
@@ -144,9 +154,122 @@ export default function Settings() {
     <div>
       <TopBar title="Réglages" />
 
-      <div className="px-4 py-4 flex flex-col gap-6">
+      <div className="px-4 py-4 flex flex-col gap-3">
+        {/* Compte & synchronisation */}
+        <Accordion
+          icon={<User size={18} className="text-primary" />}
+          title="Compte"
+          subtitle={isDemo ? 'Mode démo' : user?.email || 'Non connecté'}
+          defaultOpen
+        >
+          <div className="flex items-center gap-3.5">
+            <div className="w-14 h-14 rounded-full bg-primary flex items-center justify-center text-xl font-extrabold text-white shrink-0">
+              {profile.initiales}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-lg font-bold text-ink-1">
+                {profile.prenom} {profile.nom}
+              </div>
+              <div className="text-[13px] text-ink-2 mt-0.5">Interne · {profile.promotion}</div>
+              <div className="text-xs text-ink-3 mt-0.5 truncate">{profile.hopital}</div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setModal({ type: 'profile', item: null })}
+              className="p-2 text-ink-3 shrink-0"
+              aria-label="Modifier le profil"
+            >
+              <Pencil size={16} />
+            </button>
+          </div>
+
+          {isDemo ? (
+            <Card padding="p-0">
+              <div className="flex items-start gap-3 p-4 border-b border-line">
+                <div className="w-9 h-9 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
+                  <Sparkles size={18} className="text-primary" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-[15px] font-medium text-ink-1">Mode démo</div>
+                  <div className="text-xs text-ink-3 mt-0.5 leading-relaxed">
+                    Tu explores l'application avec des données d'exemple. Crée un
+                    compte pour saisir et sauvegarder tes propres données.
+                  </div>
+                </div>
+              </div>
+              <div className="p-4 flex flex-col gap-2.5">
+                <Button
+                  fullWidth
+                  onClick={() => {
+                    setAuthView('signup');
+                    signOut();
+                  }}
+                >
+                  <UserPlus size={16} /> Créer un compte
+                </Button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAuthView('login');
+                    signOut();
+                  }}
+                  className="text-[13px] text-ink-3 font-medium text-center"
+                >
+                  Tu as déjà un compte ? Se connecter
+                </button>
+              </div>
+            </Card>
+          ) : (
+            <Card padding="p-0">
+              <div className="flex items-center gap-3 p-4 border-b border-line">
+                <SyncStatusIcon status={syncStatus} />
+                <div className="flex-1 min-w-0">
+                  <div className="text-[15px] font-medium text-ink-1 truncate">
+                    {user?.email || 'Non connecté'}
+                  </div>
+                  <div className="text-xs text-ink-3">{syncLabel(syncStatus, lastSyncedAt)}</div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => triggerManualSync()}
+                  disabled={!configured || syncStatus === 'syncing'}
+                  className="flex items-center gap-1 text-xs text-primary font-semibold disabled:opacity-40"
+                >
+                  <RefreshCw size={14} className={syncStatus === 'syncing' ? 'animate-spin' : ''} />
+                  Synchroniser
+                </button>
+              </div>
+              <ActionRow
+                icon={<LogOut size={18} className="text-cardiac" />}
+                title="Se déconnecter"
+                subtitle="Les données restent sur cet appareil"
+                last
+                onClick={() =>
+                  setConfirm({
+                    title: 'Se déconnecter ?',
+                    message:
+                      'Tu devras saisir un nouveau code pour te reconnecter. Tes données locales sont conservées.',
+                    confirmLabel: 'Se déconnecter',
+                    onConfirm: () => signOut(),
+                  })
+                }
+              />
+            </Card>
+          )}
+          <p className="text-[11px] text-ink-3 flex items-center gap-1.5 px-1">
+            <Info size={13} /> Les patients ne sont jamais synchronisés (RGPD).
+          </p>
+        </Accordion>
+
         {/* Stage actuel */}
-        <Section label="Stage actuel">
+        <Accordion
+          icon={<Calendar size={18} className="text-primary" />}
+          title="Stage actuel"
+          subtitle={
+            data.semesters.find((s) => s.id === currentSemesterId)?.label || 'Aucun stage sélectionné'
+          }
+          defaultOpen
+        >
           <div className="flex flex-col gap-2">
             {activeSemesters.map((sem) => {
               const cfg = specialtyForSemester(data, sem.id);
@@ -194,68 +317,10 @@ export default function Settings() {
               <p className="text-[13px] text-ink-3">Aucun semestre actif.</p>
             )}
           </div>
-        </Section>
-
-        {/* Profil */}
-        <Card>
-          <div className="flex items-center gap-3.5">
-            <div className="w-14 h-14 rounded-full bg-primary flex items-center justify-center text-xl font-extrabold text-white shrink-0">
-              {profile.initiales}
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="text-lg font-bold text-ink-1">
-                {profile.prenom} {profile.nom}
-              </div>
-              <div className="text-[13px] text-ink-2 mt-0.5">Interne · {profile.promotion}</div>
-              <div className="text-xs text-ink-3 mt-0.5 truncate">{profile.hopital}</div>
-            </div>
-          </div>
-        </Card>
-
-        {/* Compte & synchronisation */}
-        <Section label="Compte & synchronisation">
-          <Card padding="p-0">
-            <div className="flex items-center gap-3 p-4 border-b border-line">
-              <SyncStatusIcon status={syncStatus} />
-              <div className="flex-1 min-w-0">
-                <div className="text-[15px] font-medium text-ink-1 truncate">
-                  {user?.email || 'Non connecté'}
-                </div>
-                <div className="text-xs text-ink-3">{syncLabel(syncStatus, lastSyncedAt)}</div>
-              </div>
-              <button
-                type="button"
-                onClick={() => triggerManualSync()}
-                disabled={!configured || syncStatus === 'syncing'}
-                className="flex items-center gap-1 text-xs text-primary font-semibold disabled:opacity-40"
-              >
-                <RefreshCw size={14} className={syncStatus === 'syncing' ? 'animate-spin' : ''} />
-                Synchroniser
-              </button>
-            </div>
-            <ActionRow
-              icon={<LogOut size={18} className="text-cardiac" />}
-              title="Se déconnecter"
-              subtitle="Les données restent sur cet appareil"
-              last
-              onClick={() =>
-                setConfirm({
-                  title: 'Se déconnecter ?',
-                  message:
-                    'Tu devras saisir un nouveau code pour te reconnecter. Tes données locales sont conservées.',
-                  confirmLabel: 'Se déconnecter',
-                  onConfirm: () => signOut(),
-                })
-              }
-            />
-          </Card>
-          <p className="text-[11px] text-ink-3 mt-2 flex items-center gap-1.5 px-1">
-            <Info size={13} /> Les patients ne sont jamais synchronisés (RGPD).
-          </p>
-        </Section>
+        </Accordion>
 
         {/* Préférences */}
-        <Section label="Préférences">
+        <Accordion icon={<SlidersHorizontal size={18} className="text-primary" />} title="Préférences">
           <Card padding="p-0">
             <div className="flex justify-between items-center p-4 border-b border-line">
               <div>
@@ -281,10 +346,14 @@ export default function Settings() {
               <Toggle checked={blocMode} onChange={setBlocMode} />
             </div>
           </Card>
-        </Section>
+        </Accordion>
 
         {/* Gestion des listes */}
-        <Section label="Gestion des listes">
+        <Accordion
+          icon={<ListChecks size={18} className="text-primary" />}
+          title="Gestion des listes"
+          subtitle="Semestres, services, chirurgiens, gestes"
+        >
           <div className="flex flex-col gap-2">
             <SemesterManagerCard
               semesters={[...data.semesters].sort((a, b) => b.startDate.localeCompare(a.startDate))}
@@ -338,10 +407,11 @@ export default function Settings() {
               onAdd={() => setModal({ type: 'procedure', item: null })}
               items={data.procedureTypes.map((p) => {
                 const cfg = getSpecialty(p.serviceType);
+                const stepsCount = p.internSteps?.length || 0;
                 return {
                   id: p.id,
                   primary: procLabel(p),
-                  secondary: `${cfg.label} · ${scopeLabel(p.scope)}`,
+                  secondary: `${cfg.label} · ${scopeLabel(p.scope)}${stepsCount ? ` · ${stepsCount} sous-gestes` : ''}`,
                   color: cfg.color,
                   raw: p,
                 };
@@ -350,10 +420,10 @@ export default function Settings() {
               onDelete={(it) => tryDelete('procedure', it.raw)}
             />
           </div>
-        </Section>
+        </Accordion>
 
         {/* Données */}
-        <Section label="Données">
+        <Accordion icon={<Database size={18} className="text-primary" />} title="Données">
           <Card padding="p-0">
             <ActionRow
               icon={<Download size={18} className="text-primary" />}
@@ -409,19 +479,18 @@ export default function Settings() {
               }
             />
           </Card>
-          <p className="text-[11px] text-ink-3 mt-2 flex items-center gap-1.5 px-1">
+          <p className="text-[11px] text-ink-3 flex items-center gap-1.5 px-1">
             <Info size={13} /> Les données patient restent locales ; seules les statistiques
             de formation sont sauvegardées dans le cloud (RGPD).
           </p>
-        </Section>
+        </Accordion>
 
         {/* À propos */}
-        <Card>
-          <div className="text-[11px] font-bold text-ink-3 uppercase tracking-wide mb-2.5">À propos</div>
+        <Accordion icon={<Info size={18} className="text-primary" />} title="À propos" subtitle={`Version ${APP_VERSION}`}>
           <AboutRow label="Application" value="CardioThoNoa" />
           <AboutRow label="Version" value={APP_VERSION} />
           <AboutRow label="Données" value="Local + cloud (hors patients)" valueColor="#27AE60" />
-        </Card>
+        </Accordion>
 
         <div className="text-center text-[11px] text-ink-3 pt-1">
           Fait avec ❤️ pour {profile.prenom}
@@ -451,9 +520,14 @@ export default function Settings() {
         open={modal.type === 'procedure'}
         onClose={() => setModal({ type: null, item: null })}
         initial={modal.item}
+        allProcedures={data.procedureTypes}
         onSubmit={(d) =>
           modal.item ? store.updateProcedureType(modal.item.id, d) : store.addProcedureType(d)
         }
+      />
+      <ProfileFormModal
+        open={modal.type === 'profile'}
+        onClose={() => setModal({ type: null, item: null })}
       />
 
       {/* Confirmation générique */}
@@ -548,15 +622,6 @@ export default function Settings() {
 }
 
 // ── Sous-composants ─────────────────────────────────────────────────────────
-function Section({ label, children }) {
-  return (
-    <div>
-      <div className="text-[11px] font-bold text-ink-3 uppercase tracking-wider mb-2.5">{label}</div>
-      {children}
-    </div>
-  );
-}
-
 const STATUS_COLORS = {
   en_cours: '#27AE60',
   termine: '#8896AB',
