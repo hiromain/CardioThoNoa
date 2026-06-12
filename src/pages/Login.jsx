@@ -1,15 +1,16 @@
-// CardioThoNoa — Écran de connexion (OTP par email).
+// CardioThoNoa — Écran de connexion (email + mot de passe, ou Google).
 //
-// Deux onglets : « Se connecter » (compte existant) et « Créer un compte »
-// (nouvelle adresse, shouldCreateUser=true). Dans les deux cas : saisie de
-// l'email → réception d'un code à 6 chiffres → saisie du code. La bascule vers
-// l'application est gérée par AuthGate via le status du store d'auth
-// (onAuthStateChange).
+// Deux onglets : « Se connecter » (compte existant) et « Créer un compte ».
+// Saisie email + mot de passe → connexion immédiate (pas de code email).
+// Un lien « Mot de passe oublié » envoie un email de réinitialisation ; le
+// retour sur ce lien (évènement PASSWORD_RECOVERY) affiche un formulaire de
+// nouveau mot de passe (flag `recovery`). La bascule vers l'application est
+// gérée par App via le status du store d'auth (onAuthStateChange).
 //
 // Un mode démo (sans compte, données d'exemple, 100 % local) est accessible
 // depuis cet écran via enterDemo().
 import { useState } from 'react';
-import { HeartPulse, Mail, KeyRound, ArrowLeft, ArrowRight, AlertTriangle, Sparkles } from 'lucide-react';
+import { HeartPulse, Mail, Lock, KeyRound, ArrowLeft, ArrowRight, AlertTriangle, Sparkles, CheckCircle2 } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -20,37 +21,40 @@ export default function Login() {
   const configured = useAuthStore((s) => s.configured);
   const flow = useAuthStore((s) => s.flow);
   const error = useAuthStore((s) => s.error);
-  const noAccount = useAuthStore((s) => s.noAccount);
-  const sentEmail = useAuthStore((s) => s.email);
   const authView = useAuthStore((s) => s.authView);
+  const recovery = useAuthStore((s) => s.recovery);
+  const resetSent = useAuthStore((s) => s.resetSent);
   const setAuthView = useAuthStore((s) => s.setAuthView);
-  const sendOtp = useAuthStore((s) => s.sendOtp);
-  const verifyOtp = useAuthStore((s) => s.verifyOtp);
-  const resetFlow = useAuthStore((s) => s.resetFlow);
+  const signIn = useAuthStore((s) => s.signIn);
+  const signUp = useAuthStore((s) => s.signUp);
+  const requestPasswordReset = useAuthStore((s) => s.requestPasswordReset);
+  const updatePassword = useAuthStore((s) => s.updatePassword);
   const devSignIn = useAuthStore((s) => s.devSignIn);
   const enterDemo = useAuthStore((s) => s.enterDemo);
   const signInWithGoogle = useAuthStore((s) => s.signInWithGoogle);
 
   const [email, setEmail] = useState('');
-  const [code, setCode] = useState('');
+  const [password, setPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [showForgot, setShowForgot] = useState(false);
 
   const isSignup = authView === 'signup';
-  const codeStep = flow === 'code-sent' || flow === 'verifying';
-  const busy = flow === 'sending' || flow === 'verifying';
+  const busy = flow === 'submitting';
 
-  async function onSubmitEmail(e) {
+  async function onSubmitAuth(e) {
     e.preventDefault();
-    await sendOtp(email, { allowSignup: isSignup });
+    if (isSignup) await signUp(email, password);
+    else await signIn(email, password);
   }
 
-  async function onSubmitCode(e) {
+  async function onSubmitForgot(e) {
     e.preventDefault();
-    await verifyOtp(code);
+    await requestPasswordReset(email);
   }
 
-  function backToEmail() {
-    setCode('');
-    resetFlow();
+  async function onSubmitRecovery(e) {
+    e.preventDefault();
+    await updatePassword(newPassword);
   }
 
   return (
@@ -79,46 +83,87 @@ export default function Login() {
               </p>
             </div>
           </Card>
-        ) : codeStep ? (
+        ) : recovery ? (
+          // ── Nouveau mot de passe (retour de « mot de passe oublié ») ──────────
           <Card>
-            <form onSubmit={onSubmitCode} className="flex flex-col gap-4">
+            <form onSubmit={onSubmitRecovery} className="flex flex-col gap-4">
               <div className="text-center">
-                <div className="text-[15px] font-bold text-ink-1">Vérifie ta boîte mail</div>
+                <div className="text-[15px] font-bold text-ink-1">Nouveau mot de passe</div>
                 <p className="text-[13px] text-ink-2 mt-1">
-                  Un code à 6 chiffres a été envoyé à<br />
-                  <span className="font-semibold text-ink-1">{sentEmail}</span>.
+                  Choisis un nouveau mot de passe pour ton compte.
                 </p>
               </div>
-
               <Input
-                label="Code reçu"
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                maxLength={6}
-                placeholder="123456"
-                value={code}
-                onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
-                className="text-center text-xl tracking-[0.4em] font-bold"
+                label="Nouveau mot de passe"
+                type="password"
+                autoComplete="new-password"
+                placeholder="6 caractères minimum"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
                 autoFocus
               />
-
               {error && <ErrorLine message={error} />}
-
-              <Button type="submit" fullWidth size="lg" disabled={busy || code.length < 6}>
+              <Button type="submit" fullWidth size="lg" disabled={busy || newPassword.length < 6}>
                 <KeyRound size={16} />
-                {flow === 'verifying' ? 'Vérification…' : isSignup ? 'Créer mon compte' : 'Se connecter'}
+                {busy ? 'Enregistrement…' : 'Définir le mot de passe'}
               </Button>
-
-              <button
-                type="button"
-                onClick={backToEmail}
-                className="flex items-center justify-center gap-1.5 text-[13px] text-ink-3 font-medium"
-              >
-                <ArrowLeft size={14} /> Changer d'adresse
-              </button>
             </form>
           </Card>
+        ) : showForgot ? (
+          // ── Mot de passe oublié ──────────────────────────────────────────────
+          <Card>
+            {resetSent ? (
+              <div className="flex flex-col items-center text-center gap-3 py-2">
+                <CheckCircle2 size={28} className="text-success" />
+                <div className="text-[15px] font-bold text-ink-1">Email envoyé</div>
+                <p className="text-[13px] text-ink-2 leading-relaxed">
+                  Si un compte existe pour <span className="font-semibold text-ink-1">{email}</span>,
+                  un lien de réinitialisation vient d'être envoyé. Ouvre-le pour choisir un
+                  nouveau mot de passe.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setShowForgot(false)}
+                  className="flex items-center justify-center gap-1.5 text-[13px] text-ink-3 font-medium mt-1"
+                >
+                  <ArrowLeft size={14} /> Retour à la connexion
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={onSubmitForgot} className="flex flex-col gap-4">
+                <div className="text-center">
+                  <div className="text-[15px] font-bold text-ink-1">Mot de passe oublié</div>
+                  <p className="text-[13px] text-ink-2 mt-1">
+                    Saisis ton adresse email pour recevoir un lien de réinitialisation.
+                  </p>
+                </div>
+                <Input
+                  label="Adresse email"
+                  type="email"
+                  inputMode="email"
+                  autoComplete="email"
+                  placeholder="noa@exemple.fr"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  autoFocus
+                />
+                {error && <ErrorLine message={error} />}
+                <Button type="submit" fullWidth size="lg" disabled={busy || !email.trim()}>
+                  <Mail size={16} />
+                  {busy ? 'Envoi…' : 'Envoyer le lien'}
+                </Button>
+                <button
+                  type="button"
+                  onClick={() => setShowForgot(false)}
+                  className="flex items-center justify-center gap-1.5 text-[13px] text-ink-3 font-medium"
+                >
+                  <ArrowLeft size={14} /> Retour à la connexion
+                </button>
+              </form>
+            )}
+          </Card>
         ) : (
+          // ── Connexion / inscription (email + mot de passe) ────────────────────
           <Card>
             <div className="flex flex-col gap-4">
               <SegmentedControl
@@ -130,15 +175,15 @@ export default function Login() {
                 onChange={setAuthView}
               />
 
-              <form onSubmit={onSubmitEmail} className="flex flex-col gap-4">
+              <form onSubmit={onSubmitAuth} className="flex flex-col gap-4">
                 <div className="text-center">
                   <div className="text-[15px] font-bold text-ink-1">
                     {isSignup ? 'Crée ton compte' : 'Connexion'}
                   </div>
                   <p className="text-[13px] text-ink-2 mt-1">
                     {isSignup
-                      ? "Saisis ton adresse email : un code à 6 chiffres te permettra de créer ton compte et d'accéder à l'application."
-                      : 'Entre ton adresse email pour recevoir un code de connexion.'}
+                      ? 'Choisis un email et un mot de passe pour accéder à l’application.'
+                      : 'Entre ton email et ton mot de passe.'}
                   </p>
                 </div>
 
@@ -153,26 +198,35 @@ export default function Login() {
                   autoFocus
                 />
 
-                {error && <ErrorLine message={error} />}
-                {noAccount && (
-                  <div className="flex flex-col gap-2 text-[13px] bg-surface-2 rounded-md px-3 py-2.5">
-                    <div className="flex items-center gap-2 text-ink-2">
-                      <AlertTriangle size={15} className="shrink-0 text-warning" />
-                      <span>Aucun compte n'existe avec cette adresse.</span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setAuthView('signup')}
-                      className="flex items-center gap-1 text-primary font-semibold pl-[23px]"
-                    >
-                      Créer un compte avec cette adresse <ArrowRight size={14} />
-                    </button>
-                  </div>
+                <Input
+                  label="Mot de passe"
+                  type="password"
+                  autoComplete={isSignup ? 'new-password' : 'current-password'}
+                  placeholder={isSignup ? '6 caractères minimum' : '••••••••'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+
+                {!isSignup && (
+                  <button
+                    type="button"
+                    onClick={() => setShowForgot(true)}
+                    className="self-end -mt-1 text-[12px] text-primary font-semibold"
+                  >
+                    Mot de passe oublié ?
+                  </button>
                 )}
 
-                <Button type="submit" fullWidth size="lg" disabled={busy || !email.trim()}>
-                  <Mail size={16} />
-                  {flow === 'sending' ? 'Envoi…' : isSignup ? 'Créer mon compte' : 'Recevoir un code'}
+                {error && <ErrorLine message={error} />}
+
+                <Button
+                  type="submit"
+                  fullWidth
+                  size="lg"
+                  disabled={busy || !email.trim() || !password}
+                >
+                  <Lock size={16} />
+                  {busy ? 'Connexion…' : isSignup ? 'Créer mon compte' : 'Se connecter'}
                 </Button>
               </form>
 
@@ -196,21 +250,23 @@ export default function Login() {
           </Card>
         )}
 
-        {/* Mode démo (sans compte) */}
-        <button
-          type="button"
-          onClick={enterDemo}
-          className="mt-4 flex items-center gap-3 p-4 rounded-lg border-2 border-dashed border-line text-left active:scale-[0.99] transition-transform"
-        >
-          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-            <Sparkles size={18} className="text-primary" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="text-[14px] font-bold text-ink-1">Découvrir sans compte</div>
-            <div className="text-xs text-ink-3">Explorer l'application avec des données d'exemple</div>
-          </div>
-          <ArrowRight size={16} className="text-ink-3 shrink-0" />
-        </button>
+        {/* Mode démo (sans compte) — masqué pendant le flux de récupération */}
+        {!recovery && (
+          <button
+            type="button"
+            onClick={enterDemo}
+            className="mt-4 flex items-center gap-3 p-4 rounded-lg border-2 border-dashed border-line text-left active:scale-[0.99] transition-transform"
+          >
+            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+              <Sparkles size={18} className="text-primary" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-[14px] font-bold text-ink-1">Découvrir sans compte</div>
+              <div className="text-xs text-ink-3">Explorer l'application avec des données d'exemple</div>
+            </div>
+            <ArrowRight size={16} className="text-ink-3 shrink-0" />
+          </button>
+        )}
 
         {import.meta.env.DEV && (
           <button

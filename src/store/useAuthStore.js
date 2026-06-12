@@ -1,7 +1,8 @@
 // CardioThoNoa — Store d'authentification (Zustand).
 //
-// Authentification par code OTP envoyé par email (Supabase Auth, magic-link en
-// mode « code »). Trois états :
+// Authentification Supabase par email + mot de passe (signInWithPassword /
+// signUp) ou Google (OAuth). Un lien « mot de passe oublié » permet la
+// réinitialisation. Trois états :
 //   - 'loading'    : on attend la résolution de getSession() au démarrage
 //   - 'signed-out' : aucune session valide → écran de connexion
 //   - 'signed-in'  : session active, user disponible
@@ -24,12 +25,17 @@ export const useAuthStore = create((set, get) => ({
   status: isSupabaseConfigured ? 'loading' : 'signed-out',
   user: null,
   isDemo: false,
-  // 'idle' | 'sending' | 'code-sent' | 'verifying'
+  // 'idle' | 'submitting'
   flow: 'idle',
   email: '',
   error: null,
-  // Adresse saisie en mode « Se connecter » sans compte associé.
-  noAccount: false,
+  // Méthode de connexion du compte courant : 'email' | 'google' | null.
+  authProvider: null,
+  // Flux « mot de passe oublié » : email de réinitialisation envoyé.
+  resetSent: false,
+  // L'utilisateur est arrivé via un lien de réinitialisation (évènement
+  // PASSWORD_RECOVERY) → l'écran propose de choisir un nouveau mot de passe.
+  recovery: false,
   // Onglet actif sur l'écran de connexion : 'login' | 'signup'.
   authView: 'login',
   configured: isSupabaseConfigured,
@@ -43,7 +49,7 @@ export const useAuthStore = create((set, get) => ({
   // Modale d'upgrade globale (ouverte par le garde d'écriture).
   upgradeOpen: false,
 
-  setAuthView: (view) => set({ authView: view, error: null, noAccount: false }),
+  setAuthView: (view) => set({ authView: view, error: null, resetSent: false }),
 
   openUpgrade: () => set({ upgradeOpen: true }),
   closeUpgrade: () => set({ upgradeOpen: false }),
@@ -77,66 +83,107 @@ export const useAuthStore = create((set, get) => ({
     // SIGNED_IN, SIGNED_OUT, TOKEN_REFRESHED…). onAuthStateChange émet
     // INITIAL_SESSION au branchement, ce qui couvre aussi la restauration de
     // session au rechargement.
-    supabase.auth.onAuthStateChange((_event, session) => {
+    supabase.auth.onAuthStateChange((event, session) => {
       const user = session?.user ?? null;
+      // Retour d'un lien « mot de passe oublié » : on reste sur l'écran de
+      // connexion pour faire saisir un nouveau mot de passe (flag recovery).
+      if (event === 'PASSWORD_RECOVERY') {
+        set({ recovery: true, status: 'signed-out', flow: 'idle', error: null });
+        return;
+      }
       set({
         user,
+        authProvider: user?.app_metadata?.provider ?? null,
         status: user ? 'signed-in' : 'signed-out',
         ...(user ? { flow: 'idle', error: null } : {}),
       });
     });
   },
 
-  // ── Étape 1 : envoi du code OTP ──────────────────────────────────────────────
-  // `allowSignup` correspond à l'onglet actif : « Créer un compte » autorise la
-  // création d'un nouvel utilisateur, « Se connecter » exige un compte existant.
-  sendOtp: async (rawEmail, { allowSignup = true } = {}) => {
+  // ── Connexion email + mot de passe ───────────────────────────────────────────
+  signIn: async (rawEmail, password) => {
     const email = rawEmail.trim().toLowerCase();
-    if (!email) {
-      set({ error: 'Adresse email requise.' });
+    if (!email || !password) {
+      set({ error: 'Email et mot de passe requis.' });
       return false;
     }
-    set({ flow: 'sending', error: null, noAccount: false, email });
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: { shouldCreateUser: allowSignup },
-    });
+    set({ flow: 'submitting', error: null, email });
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
-      if (!allowSignup && estCompteInconnu(error)) {
-        set({ flow: 'idle', noAccount: true });
-      } else {
-        set({ flow: 'idle', error: traduireErreurEmail(error) });
-      }
-      return false;
-    }
-    set({ flow: 'code-sent' });
-    return true;
-  },
-
-  // ── Étape 2 : vérification du code ───────────────────────────────────────────
-  verifyOtp: async (rawToken) => {
-    const token = rawToken.trim();
-    const email = get().email;
-    if (!token) {
-      set({ error: 'Code requis.' });
-      return false;
-    }
-    set({ flow: 'verifying', error: null });
-    const { error } = await supabase.auth.verifyOtp({
-      email,
-      token,
-      type: 'email',
-    });
-    if (error) {
-      set({ flow: 'code-sent', error: traduireErreurCode(error) });
+      set({ flow: 'idle', error: traduireErreurConnexion(error) });
       return false;
     }
     // onAuthStateChange basculera le status à 'signed-in'.
     return true;
   },
 
-  // Revenir à la saisie de l'email (depuis l'écran « code »).
-  resetFlow: () => set({ flow: 'idle', error: null, noAccount: false }),
+  // ── Inscription email + mot de passe ─────────────────────────────────────────
+  // Avec « Confirm email » désactivé côté Supabase, signUp ouvre directement une
+  // session (pas d'email). Si une session n'est pas renvoyée, c'est que la
+  // confirmation est encore active → on l'indique.
+  signUp: async (rawEmail, password) => {
+    const email = rawEmail.trim().toLowerCase();
+    if (!email || !password) {
+      set({ error: 'Email et mot de passe requis.' });
+      return false;
+    }
+    if (password.length < 6) {
+      set({ error: 'Le mot de passe doit faire au moins 6 caractères.' });
+      return false;
+    }
+    set({ flow: 'submitting', error: null, email });
+    const { data, error } = await supabase.auth.signUp({ email, password });
+    if (error) {
+      set({ flow: 'idle', error: traduireErreurInscription(error) });
+      return false;
+    }
+    if (!data.session) {
+      set({
+        flow: 'idle',
+        error:
+          "Confirmation par email requise : désactive « Confirm email » dans Supabase, ou clique le lien reçu.",
+      });
+      return false;
+    }
+    // onAuthStateChange basculera le status à 'signed-in'.
+    return true;
+  },
+
+  // ── Mot de passe oublié ──────────────────────────────────────────────────────
+  requestPasswordReset: async (rawEmail) => {
+    const email = rawEmail.trim().toLowerCase();
+    if (!email) {
+      set({ error: 'Adresse email requise.' });
+      return false;
+    }
+    set({ flow: 'submitting', error: null });
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin,
+    });
+    if (error) {
+      set({ flow: 'idle', error: 'Envoi impossible. Réessaie.' });
+      return false;
+    }
+    set({ flow: 'idle', resetSent: true });
+    return true;
+  },
+
+  // ── Définir / modifier le mot de passe ───────────────────────────────────────
+  // Utilisé par les Réglages (compte connecté) ET le flux de récupération.
+  updatePassword: async (password) => {
+    if (!password || password.length < 6) {
+      set({ error: 'Le mot de passe doit faire au moins 6 caractères.' });
+      return false;
+    }
+    set({ flow: 'submitting', error: null });
+    const { error } = await supabase.auth.updateUser({ password });
+    if (error) {
+      set({ flow: 'idle', error: 'Modification impossible. Réessaie.' });
+      return false;
+    }
+    set({ flow: 'idle', recovery: false });
+    return true;
+  },
 
   // ── Connexion Google (OAuth) ────────────────────────────────────────────────
   // Redirige vers Google ; au retour, supabase-js échange le code (PKCE) et
@@ -206,7 +253,6 @@ export const useAuthStore = create((set, get) => ({
       isDemo: true,
       flow: 'idle',
       error: null,
-      noAccount: false,
     });
     useStore.getState().resetDemo();
   },
@@ -220,32 +266,32 @@ export const useAuthStore = create((set, get) => ({
       isPaid: false,
       entitlementLoaded: false,
       upgradeOpen: false,
+      authProvider: null,
+      recovery: false,
+      resetSent: false,
       flow: 'idle',
       email: '',
       error: null,
-      noAccount: false,
     });
   },
 }));
 
-// GoTrue ne renvoie pas de code stable pour « email sans compte » avec
-// shouldCreateUser=false : on reconnaît les messages usuels (variables selon
-// les versions de Supabase Auth).
-function estCompteInconnu(error) {
+function traduireErreurConnexion(error) {
   const msg = error?.message || '';
-  return /not allowed|not found|no user|disabled/i.test(msg);
-}
-
-function traduireErreurEmail(error) {
-  const msg = error?.message || '';
+  if (/invalid login|invalid credentials/i.test(msg))
+    return 'Email ou mot de passe incorrect.';
+  if (/email not confirmed/i.test(msg))
+    return "Compte non confirmé. Vérifie l'email reçu à l'inscription.";
   if (/rate|limit|too many/i.test(msg)) return 'Trop de tentatives. Réessaie dans un instant.';
-  if (/email/i.test(msg)) return 'Adresse email invalide.';
   return 'Une erreur est survenue. Réessaie.';
 }
 
-function traduireErreurCode(error) {
+function traduireErreurInscription(error) {
   const msg = error?.message || '';
-  if (/invalid|expired|token/i.test(msg)) return 'Code invalide ou expiré.';
+  if (/already registered|already exists|user already/i.test(msg))
+    return 'Un compte existe déjà avec cette adresse. Connecte-toi.';
+  if (/password/i.test(msg)) return 'Mot de passe trop faible (6 caractères minimum).';
+  if (/email/i.test(msg)) return 'Adresse email invalide.';
   if (/rate|limit|too many/i.test(msg)) return 'Trop de tentatives. Réessaie dans un instant.';
   return 'Une erreur est survenue. Réessaie.';
 }

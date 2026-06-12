@@ -85,6 +85,25 @@ stripe listen --forward-to localhost:54321/functions/v1/stripe-webhook
 
 ---
 
+## 4 bis. Méthodes de connexion (email+mot de passe & Google)
+
+La connexion se fait désormais par **email + mot de passe** ou **Google** —
+l'OTP par code email a été retiré.
+
+Côté Supabase → Authentication :
+
+- **Providers → Email** : activé, et **désactiver « Confirm email »** pour une
+  inscription instantanée sans email (choix validé). Si tu le laisses activé,
+  l'app affichera un message demandant de confirmer par email.
+- **Mot de passe oublié** : utilise le template d'email « Reset Password » par
+  défaut ; le lien renvoie vers l'app (`redirectTo = origin`) qui détecte
+  l'évènement `PASSWORD_RECOVERY` et propose un nouveau mot de passe.
+- Les Réglages de l'app permettent de **changer le mot de passe** (comptes email)
+  et affichent la **méthode de connexion** (Google ou email).
+
+> Compte créé avant ce changement (via l'ancien OTP) : il n'a pas de mot de
+> passe → utiliser « Mot de passe oublié » pour en définir un.
+
 ## 5. Google OAuth
 
 1. Supabase → Authentication → Providers → **Google** : activer.
