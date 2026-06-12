@@ -5,6 +5,23 @@ import { generateSeedData } from '../data/seed';
 import { STORAGE_KEY, APP_USER } from '../data/constants';
 import { semesterStatus } from '../lib/dates';
 import { uid } from '../lib/id';
+import { useAuthStore } from './useAuthStore';
+
+// Paywall (achat unique) : enveloppe une action d'écriture utilisateur. Si le
+// compte n'a pas payé (démo, gratuit), l'action ne mute RIEN et ouvre la modale
+// d'upgrade. Garantit qu'aucune donnée ne persiste tant que non payé.
+// NB : useAuthStore est accédé via getState() (au moment de l'appel, jamais au
+// chargement du module) → le cycle d'import ESM useStore↔useAuthStore est sûr.
+function guardWrite(fn) {
+  return (...args) => {
+    const auth = useAuthStore.getState();
+    if (!auth.isPaid) {
+      auth.openUpgrade();
+      return null;
+    }
+    return fn(...args);
+  };
+}
 
 function pickCurrentSemester(semesters) {
   const current = semesters.find((s) => semesterStatus(s) === 'en_cours');
@@ -66,25 +83,26 @@ export const useStore = create(
       setBlocMode: (on) =>
         set((s) => ({ blocMode: on, theme: on ? 'dark' : s.theme })),
       setCurrentSemester: (id) => set({ currentSemesterId: id }),
-      updateProfile: (patch) => set((s) => ({ profile: { ...s.profile, ...patch } })),
+      updateProfile: guardWrite((patch) =>
+        set((s) => ({ profile: { ...s.profile, ...patch } }))),
 
       // ── Services ──────────────────────────────────────────────────────────
-      addService: (data) => {
+      addService: guardWrite((data) => {
         const id = uid('svc');
         set((s) => ({ services: [...s.services, { id, surgeonIds: [], ...data }] }));
         return id;
-      },
-      updateService: (id, patch) =>
+      }),
+      updateService: guardWrite((id, patch) =>
         set((s) => ({
           services: s.services.map((x) => (x.id === id ? { ...x, ...patch } : x)),
-        })),
-      deleteService: (id) =>
+        }))),
+      deleteService: guardWrite((id) =>
         set((s) => ({
           services: s.services.filter((x) => x.id !== id),
-        })),
+        }))),
 
       // ── Chirurgiens ───────────────────────────────────────────────────────
-      addSurgeon: (data) => {
+      addSurgeon: guardWrite((data) => {
         const id = uid('sg');
         set((s) => ({
           surgeons: [...s.surgeons, { id, ...data }],
@@ -95,8 +113,8 @@ export const useStore = create(
           ),
         }));
         return id;
-      },
-      updateSurgeon: (id, patch) =>
+      }),
+      updateSurgeon: guardWrite((id, patch) =>
         set((s) => {
           const prev = s.surgeons.find((x) => x.id === id);
           const surgeons = s.surgeons.map((x) => (x.id === id ? { ...x, ...patch } : x));
@@ -111,73 +129,73 @@ export const useStore = create(
             });
           }
           return { surgeons, services };
-        }),
-      deleteSurgeon: (id) =>
+        })),
+      deleteSurgeon: guardWrite((id) =>
         set((s) => ({
           surgeons: s.surgeons.filter((x) => x.id !== id),
           services: s.services.map((svc) => ({
             ...svc,
             surgeonIds: (svc.surgeonIds || []).filter((sid) => sid !== id),
           })),
-        })),
+        }))),
 
       // ── Semestres ─────────────────────────────────────────────────────────
-      addSemester: (data) => {
+      addSemester: guardWrite((data) => {
         const id = uid('sem');
         set((s) => ({ semesters: [...s.semesters, { id, archived: false, ...data }] }));
         return id;
-      },
-      updateSemester: (id, patch) =>
+      }),
+      updateSemester: guardWrite((id, patch) =>
         set((s) => ({
           semesters: s.semesters.map((x) => (x.id === id ? { ...x, ...patch } : x)),
-        })),
-      toggleArchiveSemester: (id) =>
+        }))),
+      toggleArchiveSemester: guardWrite((id) =>
         set((s) => ({
           semesters: s.semesters.map((x) =>
             x.id === id ? { ...x, archived: !x.archived } : x
           ),
-        })),
-      deleteSemester: (id) =>
+        }))),
+      deleteSemester: guardWrite((id) =>
         set((s) => ({
           semesters: s.semesters.filter((x) => x.id !== id),
           currentSemesterId:
             s.currentSemesterId === id
               ? pickCurrentSemester(s.semesters.filter((x) => x.id !== id))
               : s.currentSemesterId,
-        })),
+        }))),
 
       // ── Patients ──────────────────────────────────────────────────────────
-      addPatient: (data) => {
+      addPatient: guardWrite((data) => {
         const id = uid('pat');
         set((s) => ({ patients: [...s.patients, { id, ...data }] }));
         return id;
-      },
-      updatePatient: (id, patch) =>
+      }),
+      updatePatient: guardWrite((id, patch) =>
         set((s) => ({
           patients: s.patients.map((x) => (x.id === id ? { ...x, ...patch } : x)),
-        })),
-      deletePatient: (id) =>
-        set((s) => ({ patients: s.patients.filter((x) => x.id !== id) })),
+        }))),
+      deletePatient: guardWrite((id) =>
+        set((s) => ({ patients: s.patients.filter((x) => x.id !== id) }))),
 
       // ── Types de gestes ───────────────────────────────────────────────────
-      addProcedureType: (data) => {
+      addProcedureType: guardWrite((data) => {
         const id = uid('pt');
         set((s) => ({ procedureTypes: [...s.procedureTypes, { id, ...data }] }));
         return id;
-      },
-      updateProcedureType: (id, patch) =>
+      }),
+      updateProcedureType: guardWrite((id, patch) =>
         set((s) => ({
           procedureTypes: s.procedureTypes.map((x) =>
             x.id === id ? { ...x, ...patch } : x
           ),
-        })),
-      deleteProcedureType: (id) =>
+        }))),
+      deleteProcedureType: guardWrite((id) =>
         set((s) => ({
           procedureTypes: s.procedureTypes.filter((x) => x.id !== id),
-        })),
+        }))),
 
       // ── Interventions ─────────────────────────────────────────────────────
-      addIntervention: (data) => {
+      addIntervention: guardWrite((data) => {
         const id = uid('int');
         set((s) => ({
           interventions: [{ id, ...data }, ...s.interventions].sort((a, b) =>
@@ -185,18 +203,18 @@ export const useStore = create(
           ),
         }));
         return id;
-      },
-      updateIntervention: (id, patch) =>
+      }),
+      updateIntervention: guardWrite((id, patch) =>
         set((s) => ({
           interventions: s.interventions
             .map((x) => (x.id === id ? { ...x, ...patch } : x))
             .sort((a, b) => b.date.localeCompare(a.date)),
-        })),
-      deleteIntervention: (id) =>
-        set((s) => ({ interventions: s.interventions.filter((x) => x.id !== id) })),
+        }))),
+      deleteIntervention: guardWrite((id) =>
+        set((s) => ({ interventions: s.interventions.filter((x) => x.id !== id) }))),
 
       // ── Gestion des données ───────────────────────────────────────────────
-      replaceAll: (payload) =>
+      replaceAll: guardWrite((payload) =>
         set((s) => {
           const next = {
             services: payload.services ?? [],
@@ -214,7 +232,7 @@ export const useStore = create(
                 ? payload.currentSemesterId
                 : pickCurrentSemester(next.semesters),
           };
-        }),
+        })),
       resetDemo: () => set(freshData()),
       clearAll: () => set(emptyData()),
 
