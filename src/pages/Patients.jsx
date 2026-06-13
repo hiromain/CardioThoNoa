@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, X, ArrowDownAZ, Repeat2, CalendarClock, Hash } from 'lucide-react';
+import { Search, X, ArrowDownAZ, Repeat2, CalendarClock, Hash, ClipboardX, ExternalLink } from 'lucide-react';
 import { useData } from '../store/hooks';
 import { aggregatePatients, serviceForSemester } from '../lib/queries';
-import { getSpecialty } from '../data/constants';
+import { getSpecialty, EPICARD_URL } from '../data/constants';
 import { Card } from '../components/ui/Card';
 import { EmptyState } from '../components/ui/EmptyState';
 import { PatientRow } from '../components/PatientRow';
@@ -27,6 +27,7 @@ export default function Patients() {
   const [filter, setFilter] = useState('all');
   const [semesterFilter, setSemesterFilter] = useState('all');
   const [recurrentOnly, setRecurrentOnly] = useState(false);
+  const [epicardPending, setEpicardPending] = useState(false);
   const [sort, setSort] = useState('name');
 
   const all = useMemo(() => aggregatePatients(data), [data]);
@@ -56,7 +57,9 @@ export default function Patients() {
       const matchSemester =
         semesterFilter === 'all' || p.interventions.some((i) => i.semesterId === semesterFilter);
       const matchRecurrent = !recurrentOnly || p.count > 1;
-      return matchSearch && matchSpec && matchSemester && matchRecurrent;
+      const matchEpicard =
+        !epicardPending || (p.specialties.includes('cardiaque') && !p.epicardDone);
+      return matchSearch && matchSpec && matchSemester && matchRecurrent && matchEpicard;
     });
 
     list = [...list];
@@ -66,15 +69,26 @@ export default function Patients() {
       list.sort((a, b) => b.count - a.count || `${a.lastName}${a.firstName}`.localeCompare(`${b.lastName}${b.firstName}`));
     }
     return list;
-  }, [all, search, filter, semesterFilter, recurrentOnly, sort]);
+  }, [all, search, filter, semesterFilter, recurrentOnly, epicardPending, sort]);
 
   return (
     <div>
       {/* Header */}
       <div className="glass sticky top-0 z-50 px-4 pt-safe pb-3 border-b border-line">
-        <div className="text-[22px] font-extrabold text-ink-1 pt-2.5 mb-3">
-          Patients
-          <span className="text-sm font-semibold text-ink-3 ml-2">{filtered.length}</span>
+        <div className="flex items-center justify-between pt-2.5 mb-3">
+          <div className="text-[22px] font-extrabold text-ink-1">
+            Patients
+            <span className="text-sm font-semibold text-ink-3 ml-2">{filtered.length}</span>
+          </div>
+          <a
+            href={EPICARD_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-pill text-xs font-semibold border-[1.5px]"
+            style={{ borderColor: 'var(--border)', color: 'var(--text-3)' }}
+          >
+            Epicard <ExternalLink size={13} />
+          </a>
         </div>
 
         <div className="flex items-center gap-2.5 bg-surface-2 rounded-md px-3 py-2.5 border-[1.5px] border-line focus-within:border-primary transition-colors">
@@ -133,6 +147,18 @@ export default function Patients() {
             }}
           >
             <Repeat2 size={13} /> Récurrents
+          </button>
+          <button
+            type="button"
+            onClick={() => setEpicardPending((v) => !v)}
+            className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-pill text-xs font-semibold border-[1.5px] transition-colors"
+            style={{
+              borderColor: epicardPending ? '#E67E22' : 'var(--border)',
+              background: epicardPending ? 'rgba(230,126,34,0.1)' : 'transparent',
+              color: epicardPending ? '#E67E22' : 'var(--text-3)',
+            }}
+          >
+            <ClipboardX size={13} /> Epicard à saisir
           </button>
         </div>
 

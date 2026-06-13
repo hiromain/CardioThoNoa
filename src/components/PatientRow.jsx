@@ -1,4 +1,6 @@
+import { ClipboardCheck, ClipboardX } from 'lucide-react';
 import { ageFromDOB, formatDateShort } from '../lib/dates';
+import { useStore } from '../store/useStore';
 import { SpecBadge } from './SpecBadge';
 
 function avatarColors(specialties) {
@@ -11,9 +13,11 @@ function avatarColors(specialties) {
 }
 
 export function PatientRow({ patient, onClick, last = false }) {
+  const updatePatient = useStore((s) => s.updatePatient);
   const age = ageFromDOB(patient.dateOfBirth);
   const initials = `${patient.firstName[0] || ''}${patient.lastName[0] || ''}`.toUpperCase();
   const { color, bg } = avatarColors(patient.specialties);
+  const showEpicard = patient.specialties.includes('cardiaque');
 
   return (
     <button
@@ -38,11 +42,29 @@ export function PatientRow({ patient, onClick, last = false }) {
           <span>·</span>
           <span>DDN {formatDateShort(patient.dateOfBirth)}</span>
         </div>
-        {patient.specialties.length > 0 && (
+        {(patient.specialties.length > 0 || showEpicard) && (
           <div className="flex gap-1.5 mt-1.5 flex-wrap">
             {patient.specialties.map((sp) => (
               <SpecBadge key={sp} type={sp} small />
             ))}
+            {showEpicard && (
+              <span
+                role="button"
+                tabIndex={0}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  updatePatient(patient.id, { epicardDone: !patient.epicardDone });
+                }}
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-pill text-[10px] font-semibold"
+                style={{
+                  color: patient.epicardDone ? '#27AE60' : '#E67E22',
+                  background: patient.epicardDone ? 'rgba(39,174,96,0.12)' : 'rgba(230,126,34,0.12)',
+                }}
+              >
+                {patient.epicardDone ? <ClipboardCheck size={11} /> : <ClipboardX size={11} />}
+                Epicard {patient.epicardDone ? 'fait' : 'à saisir'}
+              </span>
+            )}
           </div>
         )}
       </div>

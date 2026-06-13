@@ -12,6 +12,10 @@ export const APP_USER = {
 export const APP_VERSION = '1.0.0';
 export const STORAGE_KEY = 'cardiothonoa-v1';
 
+// Portail de saisie EpiCard (registre national de chirurgie cardiaque).
+export const EPICARD_URL =
+  'https://fsm.tentelemed.com/Ctms-fsm/portal/login?2&page_target=com.tentelemed.portal.pages.JumpBoardPage';
+
 // Configuration visuelle par type de service / spécialité.
 export const SPECIALTIES = {
   cardiaque: {
