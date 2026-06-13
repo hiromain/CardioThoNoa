@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Pencil, Trash2 } from 'lucide-react';
+import { Pencil, Trash2, ExternalLink } from 'lucide-react';
 import { useData } from '../store/hooks';
 import { useStore } from '../store/useStore';
 import {
@@ -9,11 +9,12 @@ import {
   byId,
   procLabel,
 } from '../lib/queries';
-import { getSpecialty } from '../data/constants';
+import { getSpecialty, EPICARD_URL } from '../data/constants';
 import { formatDate, formatDateShort, ageFromDOB } from '../lib/dates';
 import { TopBar } from '../components/layout/TopBar';
 import { Card } from '../components/ui/Card';
 import { StatCard } from '../components/ui/StatCard';
+import { Toggle } from '../components/ui/Toggle';
 import { SectionTitle } from '../components/Section';
 import { SpecBadge } from '../components/SpecBadge';
 import { InterventionRow } from '../components/InterventionRow';
@@ -122,6 +123,30 @@ export default function PatientDetail() {
             </div>
           </div>
         </Card>
+
+        {patient.specialties.includes('cardiaque') && (
+          <Card>
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex-1 min-w-0">
+                <div className="text-[15px] font-medium text-ink-1">Saisi dans Epicard</div>
+                <div className="text-xs text-ink-3 mt-0.5">Base nationale de chirurgie cardiaque</div>
+              </div>
+              <Toggle
+                checked={!!patient.epicardDone}
+                onChange={(v) => updatePatient(patient.id, { epicardDone: v })}
+              />
+            </div>
+            <a
+              href={EPICARD_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-3 flex items-center justify-center gap-1.5 text-[13px] font-semibold text-primary py-2 rounded-md border-[1.5px]"
+              style={{ borderColor: 'var(--border)' }}
+            >
+              Ouvrir Epicard <ExternalLink size={14} />
+            </a>
+          </Card>
+        )}
 
         <div className="flex gap-2.5">
           <StatCard value={patient.count} label="Interventions" color="var(--primary)" />

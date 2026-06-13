@@ -709,6 +709,14 @@ export default function Settings() {
           <AboutRow label="Application" value="CardioThoNoa" />
           <AboutRow label="Version" value={APP_VERSION} />
           <AboutRow label="Données" value="Local + cloud (hors patients)" valueColor="#27AE60" />
+          <AboutRow label="Développée par" value="Romain Hittinger" />
+          <AboutRow label="Profession" value="Chirurgien cardiaque" />
+          <div className="mt-3 pt-3 border-t border-line flex flex-col gap-1.5 text-[12px] text-ink-3 leading-relaxed">
+            <p>🫀 Codée entre deux gardes, avec amour (et beaucoup de café).</p>
+            <p>📈 Garantie sans complication — contrairement à certaines suites opératoires.</p>
+            <p>🪛 Bugs traités en urgence, comme au bloc.</p>
+            <p>🤖 Co-écrite avec une IA qui n'a jamais touché un bistouri.</p>
+          </div>
         </Accordion>
 
         <div className="text-center text-[11px] text-ink-3 pt-1">
