@@ -2,6 +2,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { generateSeedData } from '../data/seed';
+import { PROCEDURE_TYPES } from '../data/procedureTypes';
 import { STORAGE_KEY, APP_USER } from '../data/constants';
 import { semesterStatus } from '../lib/dates';
 import { uid } from '../lib/id';
@@ -58,7 +59,7 @@ function emptyData() {
     surgeons: [],
     semesters: [],
     patients: [],
-    procedureTypes: [],
+    procedureTypes: PROCEDURE_TYPES.map((p) => ({ ...p })),
     interventions: [],
     currentSemesterId: null,
   };
