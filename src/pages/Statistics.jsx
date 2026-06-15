@@ -12,6 +12,7 @@ import {
   LineChart,
   Line,
   CartesianGrid,
+  Legend,
 } from 'recharts';
 import { useData } from '../store/hooks';
 import { serviceForSemester } from '../lib/queries';
@@ -20,8 +21,11 @@ import {
   interventionsPerMonth,
   specialtySplit,
   topInternProcedures,
+  topPatientProcedures,
   internProceduresPerMonth,
   semesterProcedureMatrix,
+  positionsBySemester,
+  topSurgeons,
 } from '../lib/stats';
 import { getSpecialty, getPositionStyle, POSITIONS } from '../data/constants';
 import { TopBar } from '../components/layout/TopBar';
@@ -40,6 +44,33 @@ const tooltipStyle = {
   boxShadow: 'var(--shadow-md)',
 };
 const axisTick = { fontSize: 10, fill: 'var(--text-3)' };
+
+function AutonomyTooltip({ active, payload, label }) {
+  if (!active || !payload?.length) return null;
+  const row = payload[0].payload;
+  return (
+    <div style={tooltipStyle} className="px-2.5 py-2">
+      <div className="text-[12px] font-bold text-ink-1 mb-1.5">{label}</div>
+      <div className="flex flex-col gap-1">
+        {POSITIONS.map((p) => {
+          const st = getPositionStyle(p);
+          return (
+            <div key={p} className="flex items-center justify-between gap-3 text-[11px]">
+              <span className="flex items-center gap-1.5" style={{ color: st.color }}>
+                <span className="w-2 h-2 rounded-full" style={{ background: st.color }} />
+                {st.short}
+              </span>
+              <span className="font-bold text-ink-1">
+                {row[`${p}__n`]} ({row[p]}%)
+              </span>
+            </div>
+          );
+        })}
+      </div>
+      <div className="text-[10px] text-ink-3 mt-1.5 pt-1.5 border-t border-line">Total : {row.total}</div>
+    </div>
+  );
+}
 
 export default function Statistics() {
   const data = useData();
@@ -80,6 +111,18 @@ export default function Statistics() {
     [data, filtered, matrixSemesters]
   );
 
+  const patientCaseMix = useMemo(() => topPatientProcedures(data, filtered, 8), [data, filtered]);
+  const surgeonBreakdown = useMemo(() => topSurgeons(data, filtered, 6), [data, filtered]);
+  const semestersWithData = useMemo(
+    () => matrixSemesters.filter((s) => filtered.some((i) => i.semesterId === s.id)),
+    [matrixSemesters, filtered]
+  );
+  const autonomy = useMemo(
+    () => positionsBySemester(filtered, semestersWithData),
+    [filtered, semestersWithData]
+  );
+  const avgGestes = stats.total ? (stats.internGestes / stats.total).toFixed(1) : '0';
+
   const pieData = split.filter((s) => s.value > 0);
   const currentSem = data.semesters.find((s) => s.id === period);
 
@@ -115,6 +158,11 @@ export default function Statistics() {
               <StatCard value={stats.total} label="Interventions" color="var(--primary)" />
               <StatCard value={stats.internGestes} label="Gestes interne" color="var(--text-1)" />
               <StatCard value={stats.patients} label="Patients" color="var(--text-2)" />
+            </div>
+            <div className="flex gap-2.5">
+              <StatCard value={stats.surgeons} label="Chirurgiens" color="var(--text-2)" />
+              <StatCard value={stats.patientGestes} label="Gestes patient" color="var(--text-2)" />
+              <StatCard value={avgGestes} label="Gestes / intervention" color="var(--text-2)" />
             </div>
 
             {/* 1. Interventions par mois */}
@@ -179,6 +227,32 @@ export default function Statistics() {
               </div>
             </Card>
 
+            {/* Évolution de l'autonomie par semestre */}
+            {semestersWithData.length > 1 && (
+              <Card>
+                <SectionTitle>Évolution de l'autonomie</SectionTitle>
+                <ResponsiveContainer width="100%" height={200}>
+                  <BarChart data={autonomy} margin={{ top: 6, right: 4, left: -22, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                    <XAxis dataKey="label" tick={axisTick} axisLine={false} tickLine={false} />
+                    <YAxis tick={axisTick} axisLine={false} tickLine={false} unit="%" domain={[0, 100]} />
+                    <Tooltip content={<AutonomyTooltip />} cursor={{ fill: 'var(--surface-2)' }} />
+                    <Legend wrapperStyle={{ fontSize: 11 }} iconType="circle" iconSize={8} />
+                    {POSITIONS.map((p) => (
+                      <Bar
+                        key={p}
+                        dataKey={p}
+                        stackId="position"
+                        name={getPositionStyle(p).short}
+                        fill={getPositionStyle(p).color}
+                      />
+                    ))}
+                  </BarChart>
+                </ResponsiveContainer>
+                <p className="text-[11px] text-ink-3 mt-1">Part de chaque position par semestre, en %.</p>
+              </Card>
+            )}
+
             {/* 3. Top gestes interne */}
             <Card>
               <SectionTitle>Top gestes réalisés par l'interne</SectionTitle>
@@ -206,6 +280,36 @@ export default function Statistics() {
                 </BarChart>
               </ResponsiveContainer>
             </Card>
+
+            {/* Profil des interventions (gestes réalisés sur le patient) */}
+            {patientCaseMix.length > 0 && (
+              <Card>
+                <SectionTitle>Types d'interventions les plus fréquents</SectionTitle>
+                <ResponsiveContainer width="100%" height={Math.max(140, patientCaseMix.length * 30)}>
+                  <BarChart
+                    data={patientCaseMix}
+                    layout="vertical"
+                    margin={{ top: 0, right: 16, left: 8, bottom: 0 }}
+                  >
+                    <XAxis type="number" hide allowDecimals={false} />
+                    <YAxis
+                      type="category"
+                      dataKey="label"
+                      tick={{ fontSize: 11, fill: 'var(--text-2)' }}
+                      axisLine={false}
+                      tickLine={false}
+                      width={88}
+                    />
+                    <Tooltip contentStyle={tooltipStyle} cursor={{ fill: 'var(--surface-2)' }} />
+                    <Bar dataKey="count" name="Interventions" radius={[0, 6, 6, 0]} maxBarSize={20} label={{ position: 'right', fontSize: 11, fill: 'var(--text-2)' }}>
+                      {patientCaseMix.map((p) => (
+                        <Cell key={p.id} fill={p.color} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </Card>
+            )}
 
             {/* 4. Progression mensuelle des actes */}
             <Card>
@@ -253,6 +357,36 @@ export default function Statistics() {
                 })}
               </div>
             </Card>
+
+            {/* Répartition par chirurgien */}
+            {surgeonBreakdown.length > 0 && (
+              <Card>
+                <SectionTitle>Répartition par chirurgien</SectionTitle>
+                <ResponsiveContainer width="100%" height={Math.max(120, surgeonBreakdown.length * 30)}>
+                  <BarChart
+                    data={surgeonBreakdown}
+                    layout="vertical"
+                    margin={{ top: 0, right: 16, left: 8, bottom: 0 }}
+                  >
+                    <XAxis type="number" hide allowDecimals={false} />
+                    <YAxis
+                      type="category"
+                      dataKey="label"
+                      tick={{ fontSize: 11, fill: 'var(--text-2)' }}
+                      axisLine={false}
+                      tickLine={false}
+                      width={88}
+                    />
+                    <Tooltip contentStyle={tooltipStyle} cursor={{ fill: 'var(--surface-2)' }} />
+                    <Bar dataKey="count" name="Interventions" radius={[0, 6, 6, 0]} maxBarSize={20} label={{ position: 'right', fontSize: 11, fill: 'var(--text-2)' }}>
+                      {surgeonBreakdown.map((s) => (
+                        <Cell key={s.id} fill={s.color} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </Card>
+            )}
 
             {/* 5. Matrice semestre × geste */}
             <Card padding="p-0">

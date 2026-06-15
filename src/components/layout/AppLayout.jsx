@@ -9,6 +9,7 @@ import { BottomNav } from './BottomNav';
 import { BackgroundArt } from './BackgroundArt';
 import { DemoBanner } from './DemoBanner';
 import { UpgradeModal } from '../billing/UpgradeModal';
+import { OnboardingWizard } from '../onboarding/OnboardingWizard';
 
 function shouldHideNav(pathname) {
   return pathname === '/interventions/nouvelle' || pathname.endsWith('/modifier');
@@ -49,6 +50,7 @@ export function AppLayout() {
         {!hideNav && <BottomNav />}
       </div>
       <UpgradeModal />
+      <OnboardingWizard />
     </div>
   );
 }
