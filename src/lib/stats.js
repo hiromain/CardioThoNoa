@@ -1,7 +1,7 @@
 // Agrégations statistiques (alimentent les graphiques Recharts).
 import { monthKey, formatMonthYear } from './dates';
-import { getSpecialty } from '../data/constants';
-import { byId, serviceForSemester } from './queries';
+import { getSpecialty, POSITIONS } from '../data/constants';
+import { byId, serviceForSemester, surgeonName } from './queries';
 
 // KPIs synthétiques pour une liste d'interventions.
 export function kpis(interventions) {
@@ -63,11 +63,11 @@ export function specialtySplit(state, interventions) {
   ];
 }
 
-// 3. Top N gestes réalisés par l'interne.
-export function topInternProcedures(state, interventions, n = 10) {
+// 3. Top N gestes (interne ou patient) selon le champ donné.
+function topProcedures(state, interventions, field, n) {
   const map = new Map();
   interventions.forEach((i) =>
-    (i.internProcedures || []).forEach((id) => map.set(id, (map.get(id) || 0) + 1))
+    (i[field] || []).forEach((id) => map.set(id, (map.get(id) || 0) + 1))
   );
   const rows = [...map.entries()].map(([id, count]) => {
     const pt = byId(state.procedureTypes, id);
@@ -81,6 +81,16 @@ export function topInternProcedures(state, interventions, n = 10) {
     };
   });
   return rows.sort((a, b) => b.count - a.count).slice(0, n);
+}
+
+// 3a. Top N gestes réalisés par l'interne.
+export function topInternProcedures(state, interventions, n = 10) {
+  return topProcedures(state, interventions, 'internProcedures', n);
+}
+
+// 3b. Top N types d'interventions réalisées sur le patient (profil / case-mix).
+export function topPatientProcedures(state, interventions, n = 10) {
+  return topProcedures(state, interventions, 'patientProcedures', n);
 }
 
 // 4. Gestes réalisés par l'interne, par mois (progression).
@@ -123,4 +133,44 @@ export function semesterProcedureMatrix(state, interventions, semesters) {
     });
   });
   return { gestes, counts };
+}
+
+// 6. Évolution de l'autonomie : répartition des positions (en %) par semestre.
+export function positionsBySemester(interventions, semesters) {
+  const counts = {};
+  interventions.forEach((i) => {
+    if (!counts[i.semesterId]) counts[i.semesterId] = {};
+    counts[i.semesterId][i.position] = (counts[i.semesterId][i.position] || 0) + 1;
+  });
+  return semesters.map((sem) => {
+    const c = counts[sem.id] || {};
+    const total = POSITIONS.reduce((a, p) => a + (c[p] || 0), 0);
+    const row = { semesterId: sem.id, label: sem.label, total };
+    POSITIONS.forEach((p) => {
+      const n = c[p] || 0;
+      row[p] = total ? Math.round((n / total) * 1000) / 10 : 0;
+      row[`${p}__n`] = n;
+    });
+    return row;
+  });
+}
+
+// 7. Répartition des interventions par chirurgien (top N).
+export function topSurgeons(state, interventions, n = 8) {
+  const map = new Map();
+  interventions.forEach((i) => {
+    if (!i.surgeonId) return;
+    map.set(i.surgeonId, (map.get(i.surgeonId) || 0) + 1);
+  });
+  const rows = [...map.entries()].map(([id, count]) => {
+    const sg = byId(state.surgeons, id);
+    const svc = sg ? byId(state.services, sg.serviceId) : null;
+    return {
+      id,
+      label: surgeonName(sg),
+      count,
+      color: getSpecialty(svc?.type).color,
+    };
+  });
+  return rows.sort((a, b) => b.count - a.count).slice(0, n);
 }
