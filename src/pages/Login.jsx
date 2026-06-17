@@ -230,22 +230,6 @@ export default function Login() {
                 </Button>
               </form>
 
-              <div className="flex items-center gap-3">
-                <div className="h-px flex-1 bg-line" />
-                <span className="text-[11px] text-ink-3 uppercase tracking-wide">ou</span>
-                <div className="h-px flex-1 bg-line" />
-              </div>
-
-              <Button
-                type="button"
-                variant="secondary"
-                fullWidth
-                size="lg"
-                onClick={signInWithGoogle}
-                disabled={busy}
-              >
-                <GoogleIcon /> Continuer avec Google
-              </Button>
             </div>
           </Card>
         )}
