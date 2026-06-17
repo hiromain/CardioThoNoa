@@ -45,6 +45,8 @@ export const useAuthStore = create((set, get) => ({
   // données (voir le garde dans useStore.js) et synchroniser (voir syncEngine).
   // Démo et compte gratuit ont isPaid=false → lecture seule.
   isPaid: false,
+  plan: null,         // 'semester' | 'annual' | 'lifetime' | null
+  planEndDate: null,  // ISO string, null pour les plans à vie
   entitlementLoaded: false,
   // Modale d'upgrade globale (ouverte par le garde d'écriture).
   upgradeOpen: false,
@@ -64,11 +66,16 @@ export const useAuthStore = create((set, get) => ({
     }
     const { data, error } = await supabase
       .from('entitlements')
-      .select('is_paid')
+      .select('is_paid, plan, current_period_end')
       .eq('user_id', user.id)
       .maybeSingle();
     const isPaid = !error && !!data?.is_paid;
-    set({ isPaid, entitlementLoaded: true });
+    set({
+      isPaid,
+      plan: data?.plan ?? null,
+      planEndDate: data?.current_period_end ?? null,
+      entitlementLoaded: true,
+    });
     return isPaid;
   },
 
@@ -208,7 +215,7 @@ export const useAuthStore = create((set, get) => ({
 
   // ── Achat (Stripe Checkout) ──────────────────────────────────────────────────
   // Demande une session Checkout à la fonction Edge puis redirige vers Stripe.
-  startCheckout: async () => {
+  startCheckout: async (plan = 'annual') => {
     const user = get().user;
     if (!isSupabaseConfigured || !user || isLocalUser(user)) {
       // Pas de compte réel (démo) : on bascule vers la création de compte.
@@ -217,7 +224,7 @@ export const useAuthStore = create((set, get) => ({
     }
     const origin = window.location.origin;
     const { data, error } = await supabase.functions.invoke('create-checkout-session', {
-      body: { origin },
+      body: { origin, plan },
     });
     if (error || !data?.url) {
       set({ error: 'Paiement indisponible pour le moment. Réessaie.' });
@@ -264,6 +271,8 @@ export const useAuthStore = create((set, get) => ({
       user: null,
       isDemo: false,
       isPaid: false,
+      plan: null,
+      planEndDate: null,
       entitlementLoaded: false,
       upgradeOpen: false,
       authProvider: null,

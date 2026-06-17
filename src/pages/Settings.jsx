@@ -100,6 +100,8 @@ export default function Settings() {
   const user = useAuthStore((s) => s.user);
   const isDemo = useAuthStore((s) => s.isDemo);
   const isPaid = useAuthStore((s) => s.isPaid);
+  const plan = useAuthStore((s) => s.plan);
+  const planEndDate = useAuthStore((s) => s.planEndDate);
   const signOut = useAuthStore((s) => s.signOut);
   const setAuthView = useAuthStore((s) => s.setAuthView);
   const configured = useAuthStore((s) => s.configured);
@@ -109,6 +111,7 @@ export default function Settings() {
   const updatePassword = useAuthStore((s) => s.updatePassword);
 
   // Modale « changer le mot de passe » (comptes email uniquement).
+  const [selectedPlan, setSelectedPlan] = useState('annual');
   const [pwModal, setPwModal] = useState(false);
   const [pwValue, setPwValue] = useState('');
   const [pwBusy, setPwBusy] = useState(false);
@@ -306,18 +309,57 @@ export default function Settings() {
                   <div className="text-xs text-ink-3 mt-0.5 leading-relaxed">
                     {purchaseState === 'pending'
                       ? 'Activation de ton accès en cours…'
-                      : "Ton compte est en lecture seule. Débloque l'enregistrement (paiement unique, à vie) pour saisir et synchroniser tes propres données."}
+                      : 'Choisis un accès pour saisir et synchroniser tes interventions.'}
                   </div>
                 </div>
               </div>
-              <div className="p-4 flex flex-col gap-2.5">
+              {/* Sélecteur de plan */}
+              <div className="p-3 flex flex-col gap-2">
+                {[
+                  { id: 'semester', label: 'Semestre', price: '29 €', sub: '6 mois de saisie' },
+                  { id: 'annual',   label: 'Annuel',   price: '49 €', sub: 'Économise 9 €',    badge: 'Recommandé' },
+                  { id: 'lifetime', label: 'À vie',    price: '99 €', sub: 'Accès permanent' },
+                ].map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => setSelectedPlan(p.id)}
+                    className={`flex items-center gap-3 p-3 rounded-xl border-2 text-left transition-colors ${
+                      selectedPlan === p.id
+                        ? 'border-primary bg-primary/5'
+                        : 'border-line bg-surface'
+                    }`}
+                  >
+                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                      selectedPlan === p.id ? 'border-primary' : 'border-ink-3'
+                    }`}>
+                      {selectedPlan === p.id && (
+                        <div className="w-2.5 h-2.5 rounded-full bg-primary" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[14px] font-semibold text-ink-1">{p.label}</span>
+                        {p.badge && (
+                          <span className="text-[10px] font-bold text-primary bg-primary/10 px-1.5 py-0.5 rounded">
+                            {p.badge}
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-[11px] text-ink-3 mt-0.5">{p.sub}</div>
+                    </div>
+                    <div className="text-[16px] font-bold text-ink-1">{p.price}</div>
+                  </button>
+                ))}
+              </div>
+              <div className="px-3 pb-3 flex flex-col gap-2">
                 <Button
                   fullWidth
-                  onClick={() => startCheckout()}
+                  onClick={() => startCheckout(selectedPlan)}
                   disabled={purchaseState === 'pending'}
                 >
                   <Lock size={16} />
-                  {purchaseState === 'pending' ? 'Activation…' : "Débloquer l'enregistrement"}
+                  {purchaseState === 'pending' ? 'Activation…' : 'Continuer vers le paiement'}
                 </Button>
                 <button
                   type="button"
@@ -329,7 +371,7 @@ export default function Settings() {
                       onConfirm: () => signOut(),
                     })
                   }
-                  className="text-[13px] text-ink-3 font-medium text-center"
+                  className="text-[13px] text-ink-3 font-medium text-center py-1"
                 >
                   Se déconnecter
                 </button>
@@ -342,6 +384,17 @@ export default function Settings() {
                   <BadgeCheck size={16} /> Accès complet activé. Merci !
                 </div>
               )}
+              <div className="flex items-center gap-3 px-4 py-3 border-b border-line">
+                <BadgeCheck size={18} className="text-success shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <div className="text-[14px] font-semibold text-ink-1">
+                    {planDisplayLabel(plan)}
+                  </div>
+                  <div className="text-[11px] text-ink-3 mt-0.5">
+                    {planEndDate ? `Renouvellement le ${formatDate(planEndDate.slice(0, 10))}` : 'Aucun renouvellement automatique'}
+                  </div>
+                </div>
+              </div>
               <div className="flex items-center gap-3 p-4 border-b border-line">
                 <SyncStatusIcon status={syncStatus} />
                 <div className="flex-1 min-w-0">
@@ -1089,6 +1142,11 @@ const SYNC_META = {
   syncing: { color: '#2171B5', Icon: RefreshCw },
   error: { color: '#C0392B', Icon: CloudOff },
 };
+
+const PLAN_LABELS = { semester: 'Semestre (6 mois)', annual: 'Annuel', lifetime: 'À vie' };
+function planDisplayLabel(plan) {
+  return plan ? PLAN_LABELS[plan] ?? plan : 'Accès complet';
+}
 
 function SyncStatusIcon({ status }) {
   const { color, Icon } = SYNC_META[status] || SYNC_META.idle;

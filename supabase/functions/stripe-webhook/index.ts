@@ -1,14 +1,11 @@
 // CardioThoNoa — Edge Function : webhook Stripe.
 //
-// Appelée par Stripe (pas par un utilisateur) → verify_jwt = false dans
-// config.toml. L'authenticité est garantie par la signature Stripe.
+// Gère trois événements :
+//   checkout.session.completed    → achat initial (paiement unique ou abonnement)
+//   invoice.payment_succeeded     → renouvellement d'abonnement → maj period_end
+//   customer.subscription.deleted → résiliation → is_paid = false
 //
-// Sur `checkout.session.completed` (achat unique réussi), on bascule
-// entitlements.is_paid = true pour l'utilisateur (client_reference_id), via le
-// service role (qui contourne la RLS — seul autorisé à écrire cette table).
-//
-// Secrets requis (supabase secrets set …) :
-//   STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET
+// Secrets requis : STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET
 // Injectés automatiquement : SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY.
 import Stripe from 'https://esm.sh/stripe@14?target=deno';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -17,7 +14,6 @@ const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') ?? '', {
   apiVersion: '2024-06-20',
   httpClient: Stripe.createFetchHttpClient(),
 });
-// Vérification de signature compatible Deno (WebCrypto asynchrone).
 const cryptoProvider = Stripe.createSubtleCryptoProvider();
 
 const admin = createClient(
@@ -44,23 +40,17 @@ Deno.serve(async (req) => {
     return new Response('Signature invalide', { status: 400 });
   }
 
-  if (event.type === 'checkout.session.completed') {
-    const session = event.data.object as Stripe.Checkout.Session;
-    const userId = session.client_reference_id ?? session.metadata?.user_id;
-    if (userId) {
-      const { error } = await admin.from('entitlements').upsert({
-        user_id: userId,
-        is_paid: true,
-        purchased_at: new Date().toISOString(),
-        stripe_customer_id:
-          typeof session.customer === 'string' ? session.customer : null,
-        stripe_session_id: session.id,
-      });
-      if (error) {
-        console.error('Upsert entitlement', error);
-        return new Response('Erreur base', { status: 500 });
-      }
+  try {
+    if (event.type === 'checkout.session.completed') {
+      await handleCheckoutCompleted(event.data.object as Stripe.Checkout.Session);
+    } else if (event.type === 'invoice.payment_succeeded') {
+      await handleInvoicePaymentSucceeded(event.data.object as Stripe.Invoice);
+    } else if (event.type === 'customer.subscription.deleted') {
+      await handleSubscriptionDeleted(event.data.object as Stripe.Subscription);
     }
+  } catch (err) {
+    console.error(`Handler ${event.type}`, err);
+    return new Response('Erreur handler', { status: 500 });
   }
 
   return new Response(JSON.stringify({ received: true }), {
@@ -68,3 +58,85 @@ Deno.serve(async (req) => {
     headers: { 'Content-Type': 'application/json' },
   });
 });
+
+// ── Achat initial ────────────────────────────────────────────────────────────
+
+async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
+  const userId = session.client_reference_id ?? session.metadata?.user_id;
+  if (!userId) return;
+
+  const plan = session.metadata?.plan ?? 'lifetime';
+  const customerId = typeof session.customer === 'string' ? session.customer : null;
+
+  let subscriptionId: string | null = null;
+  let periodEnd: string | null = null;
+
+  if (session.mode === 'subscription' && session.subscription) {
+    subscriptionId = typeof session.subscription === 'string'
+      ? session.subscription
+      : (session.subscription as Stripe.Subscription).id;
+
+    const sub = await stripe.subscriptions.retrieve(subscriptionId);
+    periodEnd = new Date(sub.current_period_end * 1000).toISOString();
+  }
+
+  const { error } = await admin.from('entitlements').upsert({
+    user_id:                userId,
+    is_paid:                true,
+    plan,
+    purchased_at:           new Date().toISOString(),
+    stripe_customer_id:     customerId,
+    stripe_session_id:      session.id,
+    stripe_subscription_id: subscriptionId,
+    current_period_end:     periodEnd,
+  });
+  if (error) { console.error('Upsert checkout', error); throw error; }
+}
+
+// ── Renouvellement d'abonnement ──────────────────────────────────────────────
+
+async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice) {
+  if (invoice.billing_reason !== 'subscription_cycle') return;
+
+  const customerId = typeof invoice.customer === 'string' ? invoice.customer : null;
+  if (!customerId) return;
+
+  const lineItem = invoice.lines?.data?.[0];
+  if (!lineItem?.period?.end) return;
+  const periodEnd = new Date(lineItem.period.end * 1000).toISOString();
+
+  const { data: row } = await admin
+    .from('entitlements')
+    .select('user_id')
+    .eq('stripe_customer_id', customerId)
+    .maybeSingle();
+  if (!row) return;
+
+  const { error } = await admin
+    .from('entitlements')
+    .update({ is_paid: true, current_period_end: periodEnd })
+    .eq('user_id', row.user_id);
+  if (error) { console.error('Update renewal', error); throw error; }
+}
+
+// ── Résiliation d'abonnement ─────────────────────────────────────────────────
+
+async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
+  const customerId = typeof subscription.customer === 'string'
+    ? subscription.customer
+    : null;
+  if (!customerId) return;
+
+  const { data: row } = await admin
+    .from('entitlements')
+    .select('user_id')
+    .eq('stripe_customer_id', customerId)
+    .maybeSingle();
+  if (!row) return;
+
+  const { error } = await admin
+    .from('entitlements')
+    .update({ is_paid: false, stripe_subscription_id: null, current_period_end: null })
+    .eq('user_id', row.user_id);
+  if (error) { console.error('Update cancellation', error); throw error; }
+}
