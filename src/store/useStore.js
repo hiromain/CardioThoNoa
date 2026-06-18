@@ -177,6 +177,12 @@ export const useStore = create(
         }))),
       deletePatient: guardWrite((id) =>
         set((s) => ({ patients: s.patients.filter((x) => x.id !== id) }))),
+      mergePatients: guardWrite((incoming) =>
+        set((s) => {
+          const map = new Map(s.patients.map((p) => [p.id, p]));
+          for (const p of incoming) map.set(p.id, { ...map.get(p.id), ...p });
+          return { patients: Array.from(map.values()) };
+        })),
 
       // ── Types de gestes ───────────────────────────────────────────────────
       addProcedureType: guardWrite((data) => {

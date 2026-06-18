@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+﻿import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Pencil,
@@ -25,6 +25,7 @@ import {
   LogOut,
   User,
   UserPlus,
+  UsersRound,
   Sparkles,
   SlidersHorizontal,
   ListChecks,
@@ -65,6 +66,13 @@ import {
 import { formatDate, semesterStatus, STATUS_LABELS } from '../lib/dates';
 import { buildExport, downloadJSON, exportFilename, parseImport, importSummary } from '../lib/exportData';
 import { exportExcel } from '../lib/exportExcel';
+import {
+  exportPatientsJSON,
+  exportPatientsCSV,
+  parsePatientsJSON,
+  parsePatientsCSV,
+  patientsMergeSummary,
+} from '../lib/exportPatients';
 import { TopBar } from '../components/layout/TopBar';
 import { Card } from '../components/ui/Card';
 import { Accordion } from '../components/ui/Accordion';
@@ -158,10 +166,12 @@ export default function Settings() {
   }, []);
 
   const fileRef = useRef(null);
+  const patientsFileRef = useRef(null);
   const [modal, setModal] = useState({ type: null, item: null });
   const [confirm, setConfirm] = useState(null);
   const [alert, setAlert] = useState(null);
   const [pendingImport, setPendingImport] = useState(null);
+  const [pendingPatientsImport, setPendingPatientsImport] = useState(null);
   const [reportPicker, setReportPicker] = useState(false);
   const [canInstall, setCanInstall] = useState(canPromptInstall());
   const [installed, setInstalled] = useState(isStandalone());
@@ -221,6 +231,26 @@ export default function Settings() {
       try {
         const d = parseImport(reader.result);
         setPendingImport({ data: d, summary: importSummary(d) });
+      } catch (err) {
+        setAlert(err.message || 'Fichier illisible.');
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  }
+
+  function onPickPatientsFile(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const isCSV = file.name.toLowerCase().endsWith('.csv');
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const patients = isCSV
+          ? parsePatientsCSV(reader.result)
+          : parsePatientsJSON(reader.result);
+        const summary = patientsMergeSummary(data.patients, patients);
+        setPendingPatientsImport({ patients, summary });
       } catch (err) {
         setAlert(err.message || 'Fichier illisible.');
       }
@@ -696,11 +726,21 @@ export default function Settings() {
 
         {/* Données */}
         <Accordion icon={<Database size={18} className="text-primary" />} title="Données">
+          {/* Avertissement patients */}
+          <div className="flex items-start gap-2.5 rounded-xl bg-warning/10 border border-warning/30 px-3.5 py-3">
+            <UsersRound size={16} className="text-warning mt-0.5 shrink-0" />
+            <p className="text-[12px] text-ink-2 leading-relaxed">
+              <span className="font-semibold text-ink-1">Les patients ne sont jamais synchronisés</span> (RGPD).
+              Si tu changes de téléphone, exporte la liste patients <span className="font-semibold">avant</span> et garde le fichier en lieu sûr :
+              c’est le seul moyen de retrouver les noms associés à tes interventions.
+            </p>
+          </div>
+
           <Card padding="p-0">
             <ActionRow
               icon={<Download size={18} className="text-primary" />}
               title="Exporter (JSON)"
-              subtitle="Sauvegarde de toutes les données"
+              subtitle="Sauvegarde complète de toutes les données"
               onClick={() => downloadJSON(buildExport(store), exportFilename())}
             />
             <ActionRow
@@ -712,19 +752,37 @@ export default function Settings() {
             <ActionRow
               icon={<FileBarChart size={18} className="text-primary" />}
               title="Synthèse de semestre (PDF)"
-              subtitle="Rapport imprimable d'un semestre"
+              subtitle="Rapport imprimable d’un semestre"
               onClick={() => setReportPicker(true)}
+            />
+            <ActionRow
+              icon={<UsersRound size={18} className="text-warning" />}
+              title="Exporter les patients (JSON)"
+              subtitle="Liste locale avec identifiants — nécessaire pour changer de téléphone"
+              onClick={() => exportPatientsJSON(data.patients)}
+            />
+            <ActionRow
+              icon={<UsersRound size={18} className="text-warning" />}
+              title="Exporter les patients (CSV)"
+              subtitle="Format tableur éditable"
+              onClick={() => exportPatientsCSV(data.patients)}
             />
             <ActionRow
               icon={<Upload size={18} className="text-primary" />}
               title="Importer (JSON)"
-              subtitle="Restaurer une sauvegarde"
+              subtitle="Restaurer une sauvegarde complète"
               onClick={() => fileRef.current?.click()}
+            />
+            <ActionRow
+              icon={<Upload size={18} className="text-warning" />}
+              title="Importer les patients (JSON / CSV)"
+              subtitle="Fusionner une liste patients — ne supprime rien"
+              onClick={() => patientsFileRef.current?.click()}
             />
             <ActionRow
               icon={<RotateCcw size={18} className="text-warning" />}
               title="Réinitialiser la démo"
-              subtitle="Recharger le jeu de données d'exemple"
+              subtitle="Recharger le jeu de données d’exemple"
               onClick={() =>
                 setConfirm({
                   title: 'Réinitialiser les données ?',
@@ -743,7 +801,7 @@ export default function Settings() {
               onClick={() =>
                 setConfirm({
                   title: 'Tout effacer ?',
-                  message: 'Cette action supprime définitivement l’ensemble des données locales.',
+                  message: "Cette action supprime définitivement l’ensemble des données locales.",
                   danger: true,
                   confirmLabel: 'Tout effacer',
                   onConfirm: () => store.clearAll(),
@@ -752,8 +810,7 @@ export default function Settings() {
             />
           </Card>
           <p className="text-[11px] text-ink-3 flex items-center gap-1.5 px-1">
-            <Info size={13} /> Les données patient restent locales ; seules les statistiques
-            de formation sont sauvegardées dans le cloud (RGPD).
+            <Info size={13} /> Seules les statistiques de formation sont dans le cloud — les patients restent sur ton appareil (RGPD).
           </p>
         </Accordion>
 
@@ -927,6 +984,24 @@ export default function Settings() {
       </Modal>
 
       <input ref={fileRef} type="file" accept="application/json,.json" className="hidden" onChange={onPickFile} />
+      <input ref={patientsFileRef} type="file" accept="application/json,.json,.csv,text/csv" className="hidden" onChange={onPickPatientsFile} />
+
+      {/* Confirmation import patients */}
+      <ConfirmDialog
+        open={!!pendingPatientsImport}
+        onClose={() => setPendingPatientsImport(null)}
+        onConfirm={() => {
+          store.mergePatients(pendingPatientsImport.patients);
+          setPendingPatientsImport(null);
+        }}
+        title="Importer ces patients ?"
+        message={
+          pendingPatientsImport
+            ? `${pendingPatientsImport.summary.added} patient(s) ajouté(s), ${pendingPatientsImport.summary.updated} mis à jour. Aucun patient existant ne sera supprimé.`
+            : ''
+        }
+        confirmLabel="Importer"
+      />
     </div>
   );
 }
