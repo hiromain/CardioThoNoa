@@ -13,6 +13,7 @@ export function useData() {
       procedureTypes: s.procedureTypes,
       interventions: s.interventions,
       currentSemesterId: s.currentSemesterId,
+      profile: s.profile,
     }),
     shallow
   );
