@@ -6,6 +6,7 @@ import { useData, useCurrentSemester } from '../../store/hooks';
 import { specialtyForSemester } from '../../lib/queries';
 import { getSpecialty } from '../../data/constants';
 import { BottomNav } from './BottomNav';
+import { Sidebar } from './Sidebar';
 import { BackgroundArt } from './BackgroundArt';
 import { DemoBanner } from './DemoBanner';
 import { UpgradeModal } from '../billing/UpgradeModal';
@@ -39,14 +40,18 @@ export function AppLayout() {
   }, [pathname]);
 
   return (
-    <div className="min-h-screen bg-bg flex justify-center">
+    <div className="min-h-screen bg-bg">
       {theme !== 'dark' && <BackgroundArt type={specialty.key} />}
-      <div
-        className="relative z-10 w-full max-w-app min-h-screen flex flex-col"
-        style={{ paddingBottom: hideNav ? 0 : 88 }}
-      >
-        {showLockedBanner && <DemoBanner isDemo={isDemo} />}
-        <Outlet />
+      <Sidebar />
+      <div className="relative z-10 min-h-screen flex flex-col lg:ml-60">
+        <div
+          className={`w-full max-w-app lg:max-w-2xl mx-auto flex flex-col flex-1 ${
+            !hideNav ? 'pb-[88px] lg:pb-0' : ''
+          }`}
+        >
+          {showLockedBanner && <DemoBanner isDemo={isDemo} />}
+          <Outlet />
+        </div>
         {!hideNav && <BottomNav />}
       </div>
       <UpgradeModal />

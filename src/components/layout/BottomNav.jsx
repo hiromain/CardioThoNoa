@@ -30,7 +30,7 @@ export function BottomNav() {
   const navigate = useNavigate();
 
   return (
-    <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-app h-20 pb-safe glass border-t border-line z-[100] flex items-center px-2">
+    <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-app h-20 pb-safe glass border-t border-line z-[100] flex items-center px-2 lg:hidden">
       <Tab to="/" icon={Home} label="Accueil" end />
       <Tab to="/statistiques" icon={BarChart3} label="Stats" />
 
