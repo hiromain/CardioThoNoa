@@ -140,12 +140,18 @@ export default function Statistics() {
           <SegmentedControl
             options={[
               { value: 'all', label: 'Toutes' },
-              { value: 'cardiaque', label: '🫀 Cardiaque' },
-              { value: 'thoracique', label: '🫁 Thoracique' },
+              { value: 'cardiaque', label: '🫀 Card.' },
+              { value: 'thoracique', label: '🫁 Thor.' },
+              { value: 'congenitale', label: '👶 Cong.' },
             ]}
             value={typeFilter}
             onChange={setTypeFilter}
-            activeColor={typeFilter === 'cardiaque' ? '#C0392B' : typeFilter === 'thoracique' ? '#2171B5' : 'var(--primary)'}
+            activeColor={
+              typeFilter === 'cardiaque' ? '#C0392B'
+              : typeFilter === 'thoracique' ? '#2171B5'
+              : typeFilter === 'congenitale' ? '#1B8A6B'
+              : 'var(--primary)'
+            }
           />
         </div>
 

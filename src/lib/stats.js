@@ -40,9 +40,9 @@ export function interventionsPerMonth(interventions) {
   return [...map.values()].sort((a, b) => a.key.localeCompare(b.key));
 }
 
-// 2. Répartition cardiaque / thoracique.
+// 2. Répartition cardiaque / thoracique / congénitale.
 export function specialtySplit(state, interventions) {
-  const counts = { cardiaque: 0, thoracique: 0 };
+  const counts = { cardiaque: 0, thoracique: 0, congenitale: 0 };
   interventions.forEach((i) => {
     const svc = serviceForSemester(state, i.semesterId);
     if (svc && counts[svc.type] !== undefined) counts[svc.type] += 1;
@@ -59,6 +59,12 @@ export function specialtySplit(state, interventions) {
       label: 'Cardiaque',
       value: counts.cardiaque,
       color: getSpecialty('cardiaque').color,
+    },
+    {
+      type: 'congenitale',
+      label: 'Congénitale',
+      value: counts.congenitale,
+      color: getSpecialty('congenitale').color,
     },
   ];
 }

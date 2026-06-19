@@ -38,6 +38,13 @@ const SERVICES = [
     city: 'Lyon',
     surgeonIds: ['sg-t1', 'sg-t2', 'sg-t3'],
   },
+  {
+    id: 'svc-cong',
+    name: 'Chirurgie Cardiaque Congénitale — Louis Pradel',
+    type: 'congenitale',
+    city: 'Lyon',
+    surgeonIds: ['sg-cong1', 'sg-cong2', 'sg-cong3'],
+  },
 ];
 
 // ── Chirurgiens ───────────────────────────────────────────────────────────────
@@ -48,6 +55,9 @@ const SURGEONS = [
   { id: 'sg-t1', title: 'Pr.', firstName: 'Sophie', lastName: 'Laurent', serviceId: 'svc-thor' },
   { id: 'sg-t2', title: 'Dr.', firstName: 'Marc', lastName: 'Bernard', serviceId: 'svc-thor' },
   { id: 'sg-t3', title: 'Dr.', firstName: 'Julie', lastName: 'Petit', serviceId: 'svc-thor' },
+  { id: 'sg-cong1', title: 'Pr.', firstName: 'Antoine', lastName: 'Maillard', serviceId: 'svc-cong' },
+  { id: 'sg-cong2', title: 'Dr.', firstName: 'Céline', lastName: 'Vidal', serviceId: 'svc-cong' },
+  { id: 'sg-cong3', title: 'Dr.', firstName: 'Romain', lastName: 'Aubert', serviceId: 'svc-cong' },
 ];
 
 // ── Banque de patients (nom de famille distinct des chirurgiens) ──────────────
@@ -115,11 +125,24 @@ const COMBOS = {
     ['pt-drain'],
     ['pt-decort'],
   ],
+  congenitale: [
+    ['pt-cong-civ'],
+    ['pt-cong-cia'],
+    ['pt-cong-fallot'],
+    ['pt-cong-switch'],
+    ['pt-cong-cav'],
+    ['pt-cong-coarct'],
+    ['pt-cong-fontan'],
+    ['pt-cong-blalock'],
+    ['pt-cong-banding'],
+    ['pt-cong-norwood'],
+  ],
 };
 
 const ACCESS = {
   cardiaque: ['pt-sterno', 'pt-canul', 'pt-fermeture'],
   thoracique: ['pt-thoraco', 'pt-drain', 'pt-fermeture'],
+  congenitale: ['pt-sterno', 'pt-canul', 'pt-fermeture'],
 };
 
 const NOTES = [

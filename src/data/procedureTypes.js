@@ -83,6 +83,36 @@ export const PROCEDURE_TYPES = [
   { id: 'pt-abord-cervical', name: 'Abord cervical (cervicotomie)', abbr: 'Abord cervical', scope: 'intern', serviceType: 'thoracique' },
   { id: 'pt-biopsie-gg', name: 'Biopsie ganglionnaire', abbr: 'Biopsie gg', scope: 'intern', serviceType: 'thoracique' },
 
+  // Congénitale — interventions principales
+  // Sous-gestes tronc commun : sternotomie + CEC (sans abord fémoral adulte)
+  // La coarctation, le BT shunt et le banding ne nécessitent pas de CEC.
+  { id: 'pt-cong-fallot', name: 'Correction tétralogie de Fallot', abbr: 'Fallot', scope: 'both', serviceType: 'congenitale', internSteps: ['pt-sterno', 'pt-canul', 'pt-cong-decanul', 'pt-fermeture', 'pt-tout', 'pt-cong-resec-infund', 'pt-cong-patch-civ', 'pt-cong-recon-vd'] },
+  { id: 'pt-cong-civ', name: 'Fermeture CIV (congénitale)', abbr: 'CIV cong.', scope: 'both', serviceType: 'congenitale', internSteps: ['pt-sterno', 'pt-canul', 'pt-cong-decanul', 'pt-fermeture', 'pt-tout', 'pt-cong-patch-civ'] },
+  { id: 'pt-cong-cia', name: 'Fermeture CIA (congénitale)', abbr: 'CIA cong.', scope: 'both', serviceType: 'congenitale', internSteps: ['pt-sterno', 'pt-canul', 'pt-cong-decanul', 'pt-fermeture', 'pt-tout', 'pt-cong-patch-cia'] },
+  { id: 'pt-cong-switch', name: 'Switch artériel (transposition des grands vaisseaux)', abbr: 'Switch artériel', scope: 'both', serviceType: 'congenitale', internSteps: ['pt-sterno', 'pt-canul', 'pt-cong-decanul', 'pt-fermeture', 'pt-tout', 'pt-cong-reimplant-cor', 'pt-cong-anastomose-ao', 'pt-cong-anastomose-pulm'] },
+  { id: 'pt-cong-cav', name: 'Correction canal atrio-ventriculaire (CAV)', abbr: 'CAV', scope: 'both', serviceType: 'congenitale', internSteps: ['pt-sterno', 'pt-canul', 'pt-cong-decanul', 'pt-fermeture', 'pt-tout', 'pt-cong-patch-civ', 'pt-cong-patch-cia', 'pt-cong-recon-valves-av'] },
+  { id: 'pt-cong-coarct', name: "Correction de coarctation de l'aorte", abbr: 'Coarctation', scope: 'both', serviceType: 'congenitale', internSteps: ['pt-thoraco', 'pt-fermeture', 'pt-tout', 'pt-cong-resec-coarct', 'pt-cong-anastomose-ao'] },
+  { id: 'pt-cong-fontan', name: 'Opération de Fontan (anastomose cavo-pulmonaire totale)', abbr: 'Fontan', scope: 'both', serviceType: 'congenitale', internSteps: ['pt-sterno', 'pt-canul', 'pt-cong-decanul', 'pt-fermeture', 'pt-tout', 'pt-cong-anastomose-cavo-pulm'] },
+  { id: 'pt-cong-norwood', name: 'Opération de Norwood (hypoplasie du ventricule gauche)', abbr: 'Norwood', scope: 'both', serviceType: 'congenitale', internSteps: ['pt-sterno', 'pt-canul', 'pt-cong-decanul', 'pt-fermeture', 'pt-tout', 'pt-cong-neo-aorte', 'pt-cong-shunt-pall'] },
+  { id: 'pt-cong-blalock', name: 'Shunt de Blalock-Taussig modifié', abbr: 'BT Shunt', scope: 'both', serviceType: 'congenitale', internSteps: ['pt-thoraco', 'pt-fermeture', 'pt-tout', 'pt-cong-shunt-pall'] },
+  { id: 'pt-cong-banding', name: "Cerclage de l'artère pulmonaire (banding)", abbr: 'Banding AP', scope: 'both', serviceType: 'congenitale', internSteps: ['pt-sterno', 'pt-fermeture', 'pt-tout', 'pt-cong-cerclage-ap'] },
+
+  // Congénitale — sous-gestes réalisables par l'interne
+  { id: 'pt-cong-decanul', name: 'Décanulation / sevrage de CEC', abbr: 'Décanulation', scope: 'intern', serviceType: 'congenitale' },
+  { id: 'pt-cong-resec-infund', name: 'Résection infundibulaire', abbr: 'Résection infund.', scope: 'intern', serviceType: 'congenitale' },
+  { id: 'pt-cong-patch-civ', name: 'Fermeture de la CIV par patch', abbr: 'Patch CIV', scope: 'intern', serviceType: 'congenitale' },
+  { id: 'pt-cong-patch-cia', name: 'Fermeture de la CIA par patch ou suture directe', abbr: 'Patch CIA', scope: 'intern', serviceType: 'congenitale' },
+  { id: 'pt-cong-recon-vd', name: "Reconstruction de la voie d'éjection du ventricule droit (RVOT)", abbr: 'Recon. RVOT', scope: 'intern', serviceType: 'congenitale' },
+  { id: 'pt-cong-anastomose-pulm', name: 'Anastomose pulmonaire', abbr: 'Anastomose pulm.', scope: 'intern', serviceType: 'congenitale' },
+  { id: 'pt-cong-anastomose-ao', name: 'Anastomose aortique (congénitale)', abbr: 'Anastomose ao.', scope: 'intern', serviceType: 'congenitale' },
+  { id: 'pt-cong-reimplant-cor', name: 'Réimplantation des artères coronaires', abbr: 'Réimplant. coronaires', scope: 'intern', serviceType: 'congenitale' },
+  { id: 'pt-cong-anastomose-cavo-pulm', name: 'Anastomose cavo-pulmonaire totale (TCPC)', abbr: 'TCPC', scope: 'intern', serviceType: 'congenitale' },
+  { id: 'pt-cong-neo-aorte', name: 'Construction de la néo-aorte', abbr: 'Néo-aorte', scope: 'intern', serviceType: 'congenitale' },
+  { id: 'pt-cong-shunt-pall', name: 'Anastomose palliative / shunt systémico-pulmonaire', abbr: 'Shunt palliatif', scope: 'intern', serviceType: 'congenitale' },
+  { id: 'pt-cong-cerclage-ap', name: "Cerclage de l'artère pulmonaire", abbr: 'Cerclage AP', scope: 'intern', serviceType: 'congenitale' },
+  { id: 'pt-cong-resec-coarct', name: 'Résection de la coarctation', abbr: 'Résection coarct.', scope: 'intern', serviceType: 'congenitale' },
+  { id: 'pt-cong-recon-valves-av', name: 'Reconstruction des valves atrio-ventriculaires', abbr: 'Recon. valves AV', scope: 'intern', serviceType: 'congenitale' },
+
   // Gestes d'abord / fermeture (souvent réalisés par l'interne)
   { id: 'pt-sterno', name: 'Sternotomie', abbr: 'Sternotomie', scope: 'both', serviceType: 'autre' },
   { id: 'pt-thoraco', name: 'Thoracotomie', abbr: 'Thoracotomie', scope: 'both', serviceType: 'autre' },

@@ -23,9 +23,6 @@ import { Button } from '../components/ui/Button';
 function Donut({ split, total }) {
   const r = 22;
   const circ = 2 * Math.PI * r;
-  const [thor, card] = split;
-  const cardFrac = total ? card.value / total : 0;
-  const thorFrac = total ? thor.value / total : 0;
 
   // Au montage, animer les arcs de 0 vers leur cible via la classe .donut-arc.
   const [drawn, setDrawn] = useState(false);
@@ -33,41 +30,38 @@ function Donut({ split, total }) {
     const t = requestAnimationFrame(() => setDrawn(true));
     return () => cancelAnimationFrame(t);
   }, []);
-  const cardArc = drawn ? circ * cardFrac : 0;
-  const thorArc = drawn ? circ * thorFrac : 0;
+
+  // Calculer les arcs avec offset cumulatif (fonctionne pour N spécialités).
+  let cumFrac = 0;
+  const arcs = split
+    .filter((s) => s.value > 0)
+    .map((s) => {
+      const frac = total ? s.value / total : 0;
+      const arc = drawn ? circ * frac : 0;
+      const offset = cumFrac;
+      cumFrac += frac;
+      return { type: s.type, color: s.color, arc, offset };
+    });
 
   return (
     <svg width={64} height={64} viewBox="0 0 64 64" className="shrink-0" aria-hidden="true">
       <circle cx="32" cy="32" r={r} fill="none" stroke="var(--surface-2)" strokeWidth="12" />
-      {card.value > 0 && (
+      {arcs.map(({ type, color, arc, offset }) => (
         <circle
+          key={type}
           className="donut-arc"
           cx="32"
           cy="32"
           r={r}
           fill="none"
-          stroke={card.color}
+          stroke={color}
           strokeWidth="12"
-          strokeDasharray={`${cardArc} ${circ}`}
+          strokeDasharray={`${arc} ${circ}`}
+          strokeDashoffset={`-${circ * offset}`}
           strokeLinecap="round"
           transform="rotate(-90 32 32)"
         />
-      )}
-      {thor.value > 0 && (
-        <circle
-          className="donut-arc"
-          cx="32"
-          cy="32"
-          r={r}
-          fill="none"
-          stroke={thor.color}
-          strokeWidth="12"
-          strokeDasharray={`${thorArc} ${circ}`}
-          strokeDashoffset={`-${circ * cardFrac}`}
-          strokeLinecap="round"
-          transform="rotate(-90 32 32)"
-        />
-      )}
+      ))}
     </svg>
   );
 }

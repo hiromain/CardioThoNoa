@@ -34,6 +34,14 @@ export const SPECIALTIES = {
     muted: 'rgba(33,113,181,0.12)',
     emoji: '🫁',
   },
+  congenitale: {
+    key: 'congenitale',
+    label: 'Congénitale',
+    color: '#1B8A6B',
+    light: '#E8F8F4',
+    muted: 'rgba(27,138,107,0.12)',
+    emoji: '👶',
+  },
   autre: {
     key: 'autre',
     label: 'Autre',
@@ -74,5 +82,6 @@ export const SCOPES = [
 export const SERVICE_TYPES = [
   { value: 'cardiaque', label: 'Cardiaque' },
   { value: 'thoracique', label: 'Thoracique' },
+  { value: 'congenitale', label: 'Cardiaque Congénitale' },
   { value: 'autre', label: 'Autre' },
 ];
