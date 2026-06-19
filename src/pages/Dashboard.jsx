@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ChevronRight, Plus, List, Check, RefreshCw, AlertTriangle } from 'lucide-react';
 import { useData, useCurrentSemester } from '../store/hooks';
 import { useStore } from '../store/useStore';
-import { APP_USER, getSpecialty, getPositionStyle, POSITIONS } from '../data/constants';
+import { getSpecialty, getPositionStyle, POSITIONS } from '../data/constants';
 import {
   resolveIntervention,
   specialtyForSemester,
@@ -141,7 +141,7 @@ export default function Dashboard() {
             <div>
               <div className="text-[13px] text-white/60">{greeting},</div>
               <div className="text-[22px] font-extrabold text-white">
-                Dr {APP_USER.prenom} {APP_USER.nom} 👋
+                Dr {data.profile?.prenom} {data.profile?.nom} 👋
               </div>
             </div>
             <div className="relative shrink-0">
