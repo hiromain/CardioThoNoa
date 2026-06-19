@@ -145,7 +145,7 @@ export default function Dashboard() {
               </div>
             </div>
             <div className="relative shrink-0">
-              <Avatar initials={APP_USER.initiales} size={42} color="#fff" bg="rgba(255,255,255,0.15)" />
+              <Avatar initials={data.profile?.initiales} size={42} color="#fff" bg="rgba(255,255,255,0.15)" />
               <SyncDot status={syncStatus} />
             </div>
           </div>
