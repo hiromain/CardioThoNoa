@@ -53,12 +53,24 @@ export function proceduresForType(state, serviceType, scope) {
     return typeOk && scopeOk;
   });
 }
-// Sous-gestes proposés par défaut à l'interne pour une intervention
-// principale donnée (résolution de `ProcedureType.internSteps`).
-export function internStepsForMainProcedure(state, mainProcedureId) {
-  const main = byId(state.procedureTypes, mainProcedureId);
-  if (!main || !main.internSteps) return [];
-  return main.internSteps.map((id) => byId(state.procedureTypes, id)).filter(Boolean);
+// Sous-gestes suggérés à l'interne en fonction des gestes patient sélectionnés.
+// Agrège les internSteps de chaque geste patient et déduplique.
+export function internStepsForPatientProcedures(state, patientProcedureIds) {
+  if (!patientProcedureIds?.length) return [];
+  const seen = new Set();
+  const steps = [];
+  for (const pid of patientProcedureIds) {
+    const proc = byId(state.procedureTypes, pid);
+    if (!proc?.internSteps) continue;
+    for (const sid of proc.internSteps) {
+      if (!seen.has(sid)) {
+        seen.add(sid);
+        const s = byId(state.procedureTypes, sid);
+        if (s) steps.push(s);
+      }
+    }
+  }
+  return steps;
 }
 
 export function interventionsForSemester(state, semesterId) {
@@ -139,8 +151,7 @@ export function procedureUsageCount(state, id) {
   return state.interventions.filter(
     (i) =>
       (i.patientProcedures || []).includes(id) ||
-      (i.internProcedures || []).includes(id) ||
-      i.mainProcedureId === id
+      (i.internProcedures || []).includes(id)
   ).length;
 }
 export function serviceUsage(state, id) {

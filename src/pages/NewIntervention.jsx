@@ -10,10 +10,9 @@ import {
   proceduresForType,
   serviceForSemester,
   surgeonName,
-  internStepsForMainProcedure,
-  procLabel,
+  internStepsForPatientProcedures,
 } from '../lib/queries';
-import { todayISO, formatDate } from '../lib/dates';
+import { todayISO } from '../lib/dates';
 import { TopBar } from '../components/layout/TopBar';
 import { FormSection } from '../components/Section';
 import { Input, Select, TextArea } from '../components/ui/Field';
@@ -47,7 +46,6 @@ export default function NewIntervention() {
         patientId: editing.patientId,
         date: editing.date,
         surgeonId: editing.surgeonId,
-        mainProcedureId: editing.mainProcedureId || '',
         patientProcedures: editing.patientProcedures || [],
         internProcedures: editing.internProcedures || [],
         position: editing.position || POSITIONS[0],
@@ -62,7 +60,6 @@ export default function NewIntervention() {
       patientId: null,
       date: todayISO(),
       surgeonId: '',
-      mainProcedureId: '',
       patientProcedures: [],
       internProcedures: [],
       position: POSITIONS[0],
@@ -86,38 +83,36 @@ export default function NewIntervention() {
     () => (service ? proceduresForType(data, service.type, 'intern') : []),
     [data, service]
   );
-  const defaultInternSteps = useMemo(
-    () => internStepsForMainProcedure(data, form.mainProcedureId),
-    [data, form.mainProcedureId]
+  const suggestedInternSteps = useMemo(
+    () => internStepsForPatientProcedures(data, form.patientProcedures),
+    [data, form.patientProcedures]
   );
-  const hasDefaultSteps = defaultInternSteps.length > 0;
-  const internProcsToShow = showAllIntern ? internProcs : defaultInternSteps;
-  const hasExtraSteps = internProcs.length > defaultInternSteps.length;
+  const hasSuggestions = suggestedInternSteps.length > 0;
+  const internProcsToShow = hasSuggestions && !showAllIntern ? suggestedInternSteps : internProcs;
+  const hasExtraSteps = hasSuggestions && internProcs.length > suggestedInternSteps.length;
 
   function set(key, value) {
     setForm((f) => ({ ...f, [key]: value }));
   }
 
   function changeSemester(semId) {
-    // Le service (donc les listes filtrées) change : on réinitialise les choix dépendants.
     setForm((f) => ({
       ...f,
       semesterId: semId,
       surgeonId: '',
-      mainProcedureId: '',
       patientProcedures: [],
       internProcedures: [],
     }));
     setShowAllIntern(false);
   }
 
-  function changeMainProcedure(mainProcedureId) {
-    setForm((f) => ({ ...f, mainProcedureId, internProcedures: [] }));
+  function changePatientProcedures(ids) {
+    // Quand les gestes patient changent, les suggestions d'interne changent aussi :
+    // on réinitialise la sélection interne pour éviter des gestes orphelins.
+    setForm((f) => ({ ...f, patientProcedures: ids, internProcedures: [] }));
     setShowAllIntern(false);
   }
 
-  // Crée un nouveau type de geste « à la volée » (ajout définitif à la liste,
-  // comme dans les réglages) et renvoie son id pour sélection immédiate.
   function addProcedureOfScope(scope) {
     return (rawName) => {
       const name = rawName.trim();
@@ -140,7 +135,6 @@ export default function NewIntervention() {
       patientId: form.patientId,
       date: form.date,
       surgeonId: form.surgeonId,
-      mainProcedureId: form.mainProcedureId || null,
       patientProcedures: form.patientProcedures,
       internProcedures: form.internProcedures,
       position: form.position,
@@ -175,9 +169,7 @@ export default function NewIntervention() {
       <TopBar
         title={editing ? "Modifier l'intervention" : 'Nouvelle intervention'}
         onBack={() => navigate(-1)}
-        action={
-          service ? <SpecBadge type={service.type} /> : null
-        }
+        action={service ? <SpecBadge type={service.type} /> : null}
       />
 
       <div className="flex-1 px-4 py-5">
@@ -208,15 +200,6 @@ export default function NewIntervention() {
           />
         </FormSection>
 
-        <FormSection title="Intervention principale">
-          <Select
-            placeholder="Aucune (facultatif)"
-            value={form.mainProcedureId}
-            onChange={(e) => changeMainProcedure(e.target.value)}
-            options={patientProcs.map((p) => ({ value: p.id, label: procLabel(p) }))}
-          />
-        </FormSection>
-
         <FormSection
           title="Gestes sur le patient"
           icon={<Stethoscope size={13} className="text-ink-3" />}
@@ -225,7 +208,7 @@ export default function NewIntervention() {
           <ProcedureSelector
             procedures={patientProcs}
             selectedIds={form.patientProcedures}
-            onChange={(ids) => set('patientProcedures', ids)}
+            onChange={changePatientProcedures}
             variant="neutral"
             onAddProcedure={service ? addProcedureOfScope('patient') : undefined}
           />
@@ -254,11 +237,11 @@ export default function NewIntervention() {
           <div className="text-[12px] mb-2.5" style={{ color: cfg.color, opacity: 0.8 }}>
             Ce que vous avez personnellement réalisé — compte pour votre carnet de formation.
           </div>
-          {internProcsToShow.length === 0 && (
+          {internProcsToShow.length === 0 && !hasExtraSteps && (
             <div className="text-[12px] mb-2.5" style={{ color: cfg.color, opacity: 0.7 }}>
-              {hasDefaultSteps
+              {hasSuggestions
                 ? 'Aucun sous-geste sélectionné.'
-                : 'Sélectionnez une intervention principale pour afficher sa checklist, ou affichez tous les gestes ci-dessous.'}
+                : 'Sélectionnez des gestes sur le patient pour afficher la checklist, ou affichez tous les gestes ci-dessous.'}
             </div>
           )}
           <ProcedureSelector
@@ -272,15 +255,13 @@ export default function NewIntervention() {
               service
                 ? (rawName) => {
                     const newId = addProcedureOfScope('intern')(rawName);
-                    // Afficher la liste complète pour que le nouveau geste,
-                    // hors des étapes par défaut, reste visible et coché.
                     if (newId) setShowAllIntern(true);
                     return newId;
                   }
                 : undefined
             }
           />
-          {hasExtraSteps && (
+          {(hasExtraSteps || (!hasSuggestions && internProcs.length > 0)) && (
             <button
               type="button"
               onClick={() => setShowAllIntern((v) => !v)}
