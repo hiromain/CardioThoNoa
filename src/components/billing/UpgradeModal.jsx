@@ -1,10 +1,4 @@
-// Modale d'upgrade (paywall). Ouverte globalement par le garde d'écriture
-// (useStore → guardWrite) dès qu'un compte non payé tente d'enregistrer une
-// donnée. Contenu adaptatif :
-//   - démo (sans compte réel)  → invite à créer un compte ;
-//   - gratuit connecté         → bouton d'achat (Stripe Checkout).
-import { useState } from 'react';
-import { Lock, Check, Sparkles } from 'lucide-react';
+import { Mail, Check, Sparkles } from 'lucide-react';
 import { useAuthStore } from '../../store/useAuthStore';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
@@ -19,22 +13,9 @@ export function UpgradeModal() {
   const open = useAuthStore((s) => s.upgradeOpen);
   const closeUpgrade = useAuthStore((s) => s.closeUpgrade);
   const isDemo = useAuthStore((s) => s.isDemo);
-  const startCheckout = useAuthStore((s) => s.startCheckout);
   const setAuthView = useAuthStore((s) => s.setAuthView);
   const signOut = useAuthStore((s) => s.signOut);
-  const [busy, setBusy] = useState(false);
-
-  async function onBuy() {
-    setBusy(true);
-    // En démo, startCheckout bascule vers la création de compte (pas de
-    // paiement possible sans compte réel).
-    const ok = await startCheckout();
-    if (!ok && isDemo) {
-      closeUpgrade();
-      signOut();
-    }
-    setBusy(false);
-  }
+  const user = useAuthStore((s) => s.user);
 
   function onCreateAccount() {
     setAuthView('signup');
@@ -42,20 +23,28 @@ export function UpgradeModal() {
     signOut();
   }
 
+  function onRequestAccess() {
+    const subject = encodeURIComponent("Demande d'accès CardioThoNoa");
+    const body = encodeURIComponent(
+      `Bonjour,\n\nJe souhaiterais obtenir l'accès complet à l'application CardioThoNoa.\n\nMon adresse email : ${user?.email ?? ''}\n\nMerci !`
+    );
+    window.location.href = `mailto:romain.hittinger@gmail.com?subject=${subject}&body=${body}`;
+  }
+
   return (
     <Modal
       open={open}
       onClose={closeUpgrade}
       title="Débloque l'enregistrement"
-      subtitle="Paiement unique, accès à vie"
+      subtitle="Accès sur demande"
       footer={
         isDemo ? (
           <Button fullWidth size="lg" onClick={onCreateAccount}>
             <Sparkles size={16} /> Créer un compte
           </Button>
         ) : (
-          <Button fullWidth size="lg" onClick={onBuy} disabled={busy}>
-            <Lock size={16} /> {busy ? 'Redirection…' : 'Acheter'}
+          <Button fullWidth size="lg" onClick={onRequestAccess}>
+            <Mail size={16} /> Demander l'accès
           </Button>
         )
       }
@@ -63,8 +52,8 @@ export function UpgradeModal() {
       <div className="flex flex-col gap-4">
         <p className="text-sm text-ink-2 leading-relaxed">
           {isDemo
-            ? "Tu explores l'application avec des données d'exemple. Crée un compte puis débloque l'enregistrement pour saisir tes propres données."
-            : "Ton compte est en lecture seule. Effectue l'achat unique pour enregistrer et synchroniser tes propres données."}
+            ? "Tu explores l'application avec des données d'exemple. Crée un compte puis demande l'accès complet pour saisir tes propres données."
+            : "Ton compte est en lecture seule. Contacte l'administrateur pour obtenir l'accès complet."}
         </p>
         <ul className="flex flex-col gap-2.5">
           {AVANTAGES.map((a) => (
