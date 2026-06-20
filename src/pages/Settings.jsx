@@ -144,6 +144,7 @@ export default function Settings() {
   const [pendingImport, setPendingImport] = useState(null);
   const [pendingPatientsImport, setPendingPatientsImport] = useState(null);
   const [reportPicker, setReportPicker] = useState(false);
+  const [patientExportModal, setPatientExportModal] = useState(false);
   const [canInstall, setCanInstall] = useState(canPromptInstall());
   const [installed, setInstalled] = useState(isStandalone());
 
@@ -661,7 +662,7 @@ export default function Settings() {
             <p className="text-[12px] text-ink-2 leading-relaxed">
               <span className="font-semibold text-ink-1">Les patients ne sont jamais synchronisés</span> (RGPD).
               Si tu changes de téléphone, exporte la liste patients <span className="font-semibold">avant</span> et garde le fichier en lieu sûr :
-              c’est le seul moyen de retrouver les noms associés à tes interventions.
+              c'est le seul moyen de retrouver les noms associés à tes interventions.
             </p>
           </div>
 
@@ -673,28 +674,16 @@ export default function Settings() {
               onClick={() => downloadJSON(buildExport(store), exportFilename())}
             />
             <ActionRow
-              icon={<FileSpreadsheet size={18} className="text-success" />}
-              title="Exporter (Excel)"
-              subtitle="Classeur .xlsx avec mise en forme, lisible par tous"
-              onClick={() => exportExcel(data)}
-            />
-            <ActionRow
               icon={<FileBarChart size={18} className="text-primary" />}
-              title="Synthèse de semestre (PDF)"
-              subtitle="Rapport imprimable d’un semestre"
+              title="Rapports de formation"
+              subtitle="Excel ou synthèse PDF d'un semestre"
               onClick={() => setReportPicker(true)}
             />
             <ActionRow
               icon={<UsersRound size={18} className="text-warning" />}
-              title="Exporter les patients (JSON)"
-              subtitle="Liste locale avec identifiants — nécessaire pour changer de téléphone"
-              onClick={() => exportPatientsJSON(data.patients)}
-            />
-            <ActionRow
-              icon={<UsersRound size={18} className="text-warning" />}
-              title="Exporter les patients (CSV)"
-              subtitle="Format tableur éditable"
-              onClick={() => exportPatientsCSV(data.patients)}
+              title="Exporter les patients"
+              subtitle="JSON (réimportable) ou CSV (tableur)"
+              onClick={() => setPatientExportModal(true)}
             />
             <ActionRow
               icon={<Upload size={18} className="text-primary" />}
@@ -704,24 +693,26 @@ export default function Settings() {
             />
             <ActionRow
               icon={<Upload size={18} className="text-warning" />}
-              title="Importer les patients (JSON / CSV)"
-              subtitle="Fusionner une liste patients — ne supprime rien"
+              title="Importer les patients"
+              subtitle="Fusionner JSON ou CSV — ne supprime rien"
               onClick={() => patientsFileRef.current?.click()}
             />
-            <ActionRow
-              icon={<RotateCcw size={18} className="text-warning" />}
-              title="Réinitialiser la démo"
-              subtitle="Recharger le jeu de données d’exemple"
-              onClick={() =>
-                setConfirm({
-                  title: 'Réinitialiser les données ?',
-                  message: 'Toutes vos données seront remplacées par le jeu de démonstration.',
-                  danger: true,
-                  confirmLabel: 'Réinitialiser',
-                  onConfirm: () => store.resetDemo(),
-                })
-              }
-            />
+            {(!isPaid || isDemo) && (
+              <ActionRow
+                icon={<RotateCcw size={18} className="text-warning" />}
+                title="Réinitialiser la démo"
+                subtitle="Recharger le jeu de données d'exemple"
+                onClick={() =>
+                  setConfirm({
+                    title: 'Réinitialiser les données ?',
+                    message: 'Toutes vos données seront remplacées par le jeu de démonstration.',
+                    danger: true,
+                    confirmLabel: 'Réinitialiser',
+                    onConfirm: () => store.resetDemo(),
+                  })
+                }
+              />
+            )}
             <ActionRow
               icon={<Eraser size={18} className="text-cardiac" />}
               title="Tout effacer"
@@ -730,7 +721,7 @@ export default function Settings() {
               onClick={() =>
                 setConfirm({
                   title: 'Tout effacer ?',
-                  message: "Cette action supprime définitivement l’ensemble des données locales.",
+                  message: "Cette action supprime définitivement l'ensemble des données locales.",
                   danger: true,
                   confirmLabel: 'Tout effacer',
                   onConfirm: () => store.clearAll(),
@@ -866,14 +857,35 @@ export default function Settings() {
         danger
       />
 
-      {/* Sélecteur de semestre pour la synthèse PDF */}
+      {/* Rapports de formation : Excel global ou synthèse PDF par semestre */}
       <Modal
         open={reportPicker}
         onClose={() => setReportPicker(false)}
-        title="Synthèse de semestre"
-        subtitle="Choisir le semestre à exporter en PDF"
+        title="Rapports de formation"
       >
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-3">
+          <button
+            type="button"
+            onClick={() => { exportExcel(data); setReportPicker(false); }}
+            className="w-full flex items-center gap-3 p-3 rounded-lg border text-left active:scale-[0.99] transition-transform"
+            style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}
+          >
+            <div className="w-10 h-10 rounded-md bg-success/10 flex items-center justify-center shrink-0">
+              <FileSpreadsheet size={20} className="text-success" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-[14px] font-bold text-ink-1">Export Excel complet</div>
+              <div className="text-[12px] text-ink-3">Toutes les interventions, mise en forme, lisible par tous</div>
+            </div>
+            <ChevronRight size={16} className="text-ink-3 shrink-0" />
+          </button>
+
+          <div className="flex items-center gap-2 text-[11px] text-ink-3 px-1">
+            <FileBarChart size={13} className="text-primary shrink-0" />
+            Synthèse PDF — choisir un semestre :
+          </div>
+
+          <div className="flex flex-col gap-2">
           {[...data.semesters]
             .sort((a, b) => b.startDate.localeCompare(a.startDate))
             .map((sem) => {
@@ -909,6 +921,48 @@ export default function Settings() {
           {data.semesters.length === 0 && (
             <p className="text-[13px] text-ink-3 text-center py-4">Aucun semestre enregistré.</p>
           )}
+          </div>
+        </div>
+      </Modal>
+
+      {/* Export patients — choix du format */}
+      <Modal
+        open={patientExportModal}
+        onClose={() => setPatientExportModal(false)}
+        title="Exporter les patients"
+        subtitle={`${data.patients.length} patient(s) local(aux)`}
+      >
+        <div className="flex flex-col gap-2.5">
+          <button
+            type="button"
+            onClick={() => { exportPatientsJSON(data.patients); setPatientExportModal(false); }}
+            className="w-full flex items-center gap-3 p-3 rounded-lg border text-left active:scale-[0.99] transition-transform"
+            style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}
+          >
+            <div className="w-10 h-10 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
+              <Download size={20} className="text-primary" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-[14px] font-bold text-ink-1">JSON</div>
+              <div className="text-[12px] text-ink-3">Recommandé — réimportable dans l'application</div>
+            </div>
+            <ChevronRight size={16} className="text-ink-3 shrink-0" />
+          </button>
+          <button
+            type="button"
+            onClick={() => { exportPatientsCSV(data.patients); setPatientExportModal(false); }}
+            className="w-full flex items-center gap-3 p-3 rounded-lg border text-left active:scale-[0.99] transition-transform"
+            style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}
+          >
+            <div className="w-10 h-10 rounded-md bg-success/10 flex items-center justify-center shrink-0">
+              <FileSpreadsheet size={20} className="text-success" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-[14px] font-bold text-ink-1">CSV</div>
+              <div className="text-[12px] text-ink-3">Tableur éditable (Excel, Numbers…)</div>
+            </div>
+            <ChevronRight size={16} className="text-ink-3 shrink-0" />
+          </button>
         </div>
       </Modal>
 
