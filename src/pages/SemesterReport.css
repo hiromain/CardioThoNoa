@@ -1,7 +1,8 @@
 /* Synthèse de semestre — styles écran + impression PDF.
-   Le contenu du document (.report-paper) force des couleurs "papier" claires,
+   Le contenu (.report-paper) force des couleurs "papier" claires,
    indépendantes du thème clair/sombre de l'application. */
 
+/* ── Variables papier ─────────────────────────────────────────────────────── */
 .report-paper {
   --r-surface-2: #f0f3f7;
   --r-border: #e2e8f2;
@@ -14,72 +15,132 @@
   margin: 20px auto 60px;
   background: #ffffff;
   color: var(--r-text-1);
-  padding: 14mm;
   border-radius: 14px;
   box-shadow: 0 8px 28px rgba(20, 30, 60, 0.12);
+  overflow: hidden;
 }
 
 .report-paper * {
   box-sizing: border-box;
 }
 
+/* ── Bandeau couleur spécialité ──────────────────────────────────────────── */
+.report-accent-band {
+  height: 6px;
+  background: var(--r-accent, #1e3a5f);
+}
+
+/* ── En-tête ─────────────────────────────────────────────────────────────── */
 .report-header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 16px;
-  padding-bottom: 14px;
-  border-bottom: 3px solid var(--r-accent, var(--r-text-1));
-  margin-bottom: 18px;
+  gap: 20px;
+  padding: 18px 18px 16px;
+  border-bottom: 1px solid var(--r-border);
+}
+
+.report-header-left {
+  flex: 1;
+  min-width: 0;
 }
 
 .report-app-name {
-  font-size: 11px;
+  font-size: 9.5px;
   font-weight: 800;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--r-text-3);
+  color: var(--r-accent, var(--r-text-3));
+  margin-bottom: 4px;
 }
 
 .report-title {
-  font-size: 22px;
+  font-size: 24px;
   font-weight: 800;
   color: var(--r-text-1);
-  margin: 2px 0 4px;
-  line-height: 1.25;
+  margin: 0 0 4px;
+  line-height: 1.2;
 }
 
 .report-subtitle {
-  font-size: 12.5px;
+  font-size: 13px;
   color: var(--r-text-2);
+  margin-bottom: 6px;
 }
 
-.report-intern {
-  text-align: right;
+.report-period {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-size: 11.5px;
   color: var(--r-text-2);
-  line-height: 1.5;
-  white-space: nowrap;
 }
 
-.report-intern strong {
-  display: block;
+.report-status-badge {
+  font-size: 9.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--r-accent, var(--r-text-2));
+  background: color-mix(in srgb, var(--r-accent, #1e3a5f) 12%, transparent);
+  padding: 2px 7px;
+  border-radius: 99px;
+}
+
+/* Info interne (droite) */
+.report-header-right {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.report-intern-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--r-accent, #1e3a5f);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.report-intern-info {
+  display: flex;
+  flex-direction: column;
+  text-align: right;
+  font-size: 11px;
+  color: var(--r-text-2);
+  line-height: 1.6;
+}
+
+.report-intern-info strong {
   color: var(--r-text-1);
-  font-size: 13.5px;
+  font-size: 13px;
   font-weight: 800;
 }
 
-.report-meta-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px 20px;
-  font-size: 11.5px;
-  color: var(--r-text-2);
-  margin-bottom: 22px;
+/* Date de génération */
+.report-generated {
+  font-size: 10px;
+  color: var(--r-text-3);
+  text-align: right;
+  padding: 6px 18px 0;
 }
 
+/* ── Corps du rapport (padding uniforme) ─────────────────────────────────── */
+.report-paper > *:not(.report-accent-band):not(.report-header):not(.report-generated):not(.report-footer) {
+  padding-left: 18px;
+  padding-right: 18px;
+}
+
+/* ── Sections ────────────────────────────────────────────────────────────── */
 .report-section {
-  margin-bottom: 22px;
+  margin-top: 18px;
   break-inside: avoid;
 }
 
@@ -88,19 +149,22 @@
 }
 
 .report-section-title {
-  font-size: 11px;
+  font-size: 9.5px;
   font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--r-text-2);
+  letter-spacing: 0.1em;
+  color: var(--r-accent, var(--r-text-2));
+  border-left: 3px solid var(--r-accent, var(--r-text-2));
+  padding-left: 7px;
   margin-bottom: 10px;
 }
 
-/* KPI grid */
+/* ── KPI grid ────────────────────────────────────────────────────────────── */
 .report-kpi-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 10px;
+  margin-bottom: 14px;
 }
 
 .report-kpi {
@@ -111,13 +175,13 @@
 }
 
 .report-kpi-value {
-  font-size: 22px;
+  font-size: 24px;
   font-weight: 800;
   line-height: 1;
 }
 
 .report-kpi-label {
-  font-size: 9.5px;
+  font-size: 9px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -131,7 +195,24 @@
   margin-top: 2px;
 }
 
-/* Progress bars (objectifs) */
+/* ── Barres de progression objectifs ─────────────────────────────────────── */
+.report-progress-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.report-progress-row {}
+
+.report-progress-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--r-text-2);
+  margin-bottom: 4px;
+}
+
 .report-progress {
   height: 7px;
   border-radius: 999px;
@@ -145,22 +226,48 @@
   border-radius: 999px;
 }
 
-/* Bar rows (positions, top gestes) */
+/* ── Deux colonnes (écran + impression large) ────────────────────────────── */
+.report-two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 28px;
+  padding-left: 18px;
+  padding-right: 18px;
+}
+
+.report-two-col .report-section {
+  padding: 0;
+}
+
+/* ── Lignes de barres ────────────────────────────────────────────────────── */
 .report-bar-row {
   display: flex;
   align-items: center;
-  gap: 10px;
-  font-size: 11.5px;
-  margin-bottom: 7px;
+  gap: 8px;
+  font-size: 11px;
+  margin-bottom: 6px;
 }
 
 .report-bar-row:last-child {
   margin-bottom: 0;
 }
 
+.report-bar-label {
+  width: 90px;
+  flex-shrink: 0;
+  color: var(--r-text-1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.report-bar-label--wide {
+  width: 110px;
+}
+
 .report-bar-track {
   flex: 1;
-  height: 7px;
+  height: 6px;
   border-radius: 999px;
   background: var(--r-surface-2);
   overflow: hidden;
@@ -172,22 +279,37 @@
   border-radius: 999px;
 }
 
-/* Journal des interventions */
+.report-bar-value {
+  width: 52px;
+  text-align: right;
+  font-weight: 700;
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
+.report-bar-value small {
+  font-weight: 400;
+  color: var(--r-text-3);
+}
+
+/* ── Tableau journal ─────────────────────────────────────────────────────── */
 .report-table {
   width: 100%;
   border-collapse: collapse;
   font-size: 10px;
+  margin-top: 4px;
 }
 
 .report-table th {
   text-align: left;
-  font-size: 8.5px;
+  font-size: 8px;
   font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.05em;
   color: var(--r-text-3);
+  background: var(--r-surface-2);
   border-bottom: 1.5px solid var(--r-border);
-  padding: 5px 7px;
+  padding: 6px 7px;
   white-space: nowrap;
 }
 
@@ -198,49 +320,82 @@
   color: var(--r-text-1);
 }
 
-.report-table tbody tr:nth-child(even) {
+.report-table tbody tr:nth-child(even) td {
   background: #f8fafc;
 }
 
-.report-footer {
-  margin-top: 26px;
-  padding-top: 12px;
-  border-top: 1px solid var(--r-border);
-  font-size: 9.5px;
-  color: var(--r-text-3);
-  text-align: center;
-  line-height: 1.5;
+.report-td-bold {
+  font-weight: 600;
 }
 
-/* Écran : adaptation petits écrans (saisie/consultation mobile) */
+.report-td-notes {
+  color: var(--r-text-2) !important;
+  font-size: 9.5px;
+}
+
+.report-pos-badge {
+  font-size: 9px;
+  font-weight: 700;
+  border: 1px solid currentColor;
+  border-radius: 4px;
+  padding: 1px 4px;
+  white-space: nowrap;
+}
+
+/* ── Pied de page ────────────────────────────────────────────────────────── */
+.report-footer {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin-top: 24px;
+  padding: 10px 18px 18px;
+  border-top: 1px solid var(--r-border);
+  font-size: 9px;
+  color: var(--r-text-3);
+}
+
+/* ── Écran : petits écrans mobile ────────────────────────────────────────── */
 @media screen and (max-width: 720px) {
   .report-paper {
-    padding: 6mm;
     margin: 0;
     max-width: none;
     border-radius: 0;
     box-shadow: none;
   }
+
   .report-header {
     flex-direction: column;
+    gap: 12px;
   }
-  .report-intern {
+
+  .report-header-right {
+    flex-direction: row-reverse;
+  }
+
+  .report-intern-info {
     text-align: left;
-    white-space: normal;
   }
+
   .report-kpi-grid {
     grid-template-columns: repeat(2, 1fr);
   }
+
+  .report-two-col {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+
   .report-table {
     font-size: 9.5px;
   }
 }
 
-/* Impression / export PDF */
+/* ── Impression / export PDF ─────────────────────────────────────────────── */
 @media print {
   @page {
     size: A4;
-    margin: 12mm;
+    margin: 10mm 12mm 12mm;
   }
 
   html,
@@ -259,15 +414,27 @@
   }
 
   .report-paper {
-    box-shadow: none;
-    border-radius: 0;
-    max-width: none;
-    margin: 0;
-    padding: 0;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    max-width: none !important;
+    margin: 0 !important;
+    overflow: visible !important;
   }
 
   .report-kpi-grid {
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(4, 1fr) !important;
+  }
+
+  .report-two-col {
+    grid-template-columns: 1fr 1fr !important;
+  }
+
+  .report-section {
+    break-inside: avoid;
+  }
+
+  .report-section--table {
+    break-inside: auto;
   }
 
   .report-table thead {
@@ -276,6 +443,11 @@
 
   .report-table tr {
     break-inside: avoid;
+  }
+
+  /* Numéros de page */
+  .report-footer::after {
+    content: '';
   }
 
   * {

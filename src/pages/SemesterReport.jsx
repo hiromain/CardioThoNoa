@@ -12,9 +12,14 @@ import {
   patientName,
   surgeonFullName,
 } from '../lib/queries';
-import { kpis, topInternProcedures } from '../lib/stats';
+import {
+  kpis,
+  topInternProcedures,
+  topPatientProcedures,
+  topSurgeons,
+} from '../lib/stats';
 import { formatDate, formatDateTimeLong, ageFromDOB, semesterStatus, STATUS_LABELS } from '../lib/dates';
-import { APP_USER, POSITIONS, getPositionStyle } from '../data/constants';
+import { POSITIONS, getPositionStyle } from '../data/constants';
 import { Button } from '../components/ui/Button';
 import './SemesterReport.css';
 
@@ -23,6 +28,7 @@ export default function SemesterReport() {
   const navigate = useNavigate();
   const data = useData();
   const sem = byId(data.semesters, id);
+  const profile = data.profile || {};
 
   const view = useMemo(() => {
     if (!sem) return null;
@@ -32,6 +38,8 @@ export default function SemesterReport() {
       ints: sorted.map((i) => resolveIntervention(data, i)),
       stats: kpis(raw),
       top: topInternProcedures(data, raw, 8),
+      casemix: topPatientProcedures(data, raw, 8),
+      chirurgiens: topSurgeons(data, raw, 6),
     };
   }, [data, sem]);
 
@@ -58,6 +66,7 @@ export default function SemesterReport() {
 
   return (
     <div className="report-shell min-h-screen bg-bg">
+      {/* Barre d'actions — masquée à l'impression */}
       <div className="no-print glass sticky top-0 z-50 flex items-center justify-between gap-3 px-4 py-2.5 border-b border-line pt-safe">
         <Button variant="secondary" size="sm" onClick={() => navigate(`/semestres/${sem.id}`)}>
           <ArrowLeft size={15} /> Retour
@@ -69,26 +78,37 @@ export default function SemesterReport() {
       </div>
 
       <div className="report-paper" style={{ '--r-accent': cfg.color }}>
+
+        {/* Bandeau couleur spécialité */}
+        <div className="report-accent-band" />
+
+        {/* En-tête */}
         <header className="report-header">
-          <div>
-            <div className="report-app-name">CardioThoNoa</div>
-            <h1 className="report-title">Synthèse de stage — {sem.label}</h1>
+          <div className="report-header-left">
+            <div className="report-app-name">CardioThoNoa — Carnet de stage</div>
+            <h1 className="report-title">{sem.label}</h1>
             <div className="report-subtitle">
-              {cfg.emoji} {cfg.label} · {service?.name}
+              {cfg.emoji} {cfg.label}
+              {service?.name ? ` · ${service.name}` : ''}
               {service?.city ? ` · ${service.city}` : ''}
             </div>
+            <div className="report-period">
+              {formatDate(sem.startDate)} — {formatDate(sem.endDate)}
+              <span className="report-status-badge">{STATUS_LABELS[status]}</span>
+            </div>
           </div>
-          <div className="report-intern">
-            <strong>{APP_USER.prenom} {APP_USER.nom}</strong>
-            <div>{APP_USER.promotion}</div>
-            <div>{APP_USER.hopital}</div>
+          <div className="report-header-right">
+            <div className="report-intern-avatar">{profile.initiales || '?'}</div>
+            <div className="report-intern-info">
+              <strong>{profile.prenom} {profile.nom}</strong>
+              <span>{profile.promotion}</span>
+              <span>{profile.hopital}</span>
+            </div>
           </div>
         </header>
 
-        <div className="report-meta-row">
-          <span>Période : {formatDate(sem.startDate)} → {formatDate(sem.endDate)}</span>
-          <span>Statut : {STATUS_LABELS[status]}</span>
-          <span>Document généré le {formatDateTimeLong(new Date())}</span>
+        <div className="report-generated">
+          Document généré le {formatDateTimeLong(new Date())}
         </div>
 
         {/* KPIs */}
@@ -98,78 +118,125 @@ export default function SemesterReport() {
             <Kpi
               value={view.ints.length}
               label="Interventions"
-              sub={`Objectif : ${obj.interventions || '—'}`}
+              sub={obj.interventions ? `Objectif : ${obj.interventions}` : undefined}
               color={cfg.color}
             />
             <Kpi
               value={view.stats.internGestes}
               label="Gestes réalisés"
-              sub={`Objectif : ${obj.gestes || '—'}`}
+              sub={obj.gestes ? `Objectif : ${obj.gestes}` : undefined}
             />
             <Kpi
-              value={`${pctInt}%`}
+              value={`${pctInt} %`}
               label="Objectif interventions"
-              color={pctInt >= 80 ? '#27AE60' : pctInt >= 50 ? '#E67E22' : undefined}
+              color={pctInt >= 80 ? '#27AE60' : pctInt >= 50 ? '#E67E22' : '#C0392B'}
             />
-            <Kpi value={view.stats.patients} label="Patients suivis" />
+            <Kpi value={view.stats.patients} label="Patients distincts" />
           </div>
-          <div className="flex flex-col gap-2.5 mt-3">
-            <ProgressRow label="Interventions" value={view.ints.length} max={obj.interventions} color={cfg.color} />
-            <ProgressRow
-              label="Gestes réalisés"
-              value={view.stats.internGestes}
-              max={obj.gestes}
-              color="var(--r-text-1)"
-            />
-          </div>
+          {(obj.interventions > 0 || obj.gestes > 0) && (
+            <div className="report-progress-list">
+              {obj.interventions > 0 && (
+                <ProgressRow label="Interventions" value={view.ints.length} max={obj.interventions} color={cfg.color} />
+              )}
+              {obj.gestes > 0 && (
+                <ProgressRow label="Gestes réalisés" value={view.stats.internGestes} max={obj.gestes} color="#1E3A5F" />
+              )}
+            </div>
+          )}
         </section>
 
-        {/* Répartition par position */}
-        <section className="report-section">
-          <div className="report-section-title">Répartition par position</div>
-          {POSITIONS.map((p) => {
-            const st = getPositionStyle(p);
-            const count = view.stats.positions[p] || 0;
-            const pct = view.stats.total ? Math.round((count / view.stats.total) * 100) : 0;
-            return (
-              <div key={p} className="report-bar-row">
-                <span style={{ width: 130, textTransform: 'capitalize' }}>{p}</span>
-                <div className="report-bar-track">
-                  <span className="report-bar-fill" style={{ width: `${pct}%`, background: st.color }} />
-                </div>
-                <span style={{ width: 70, textAlign: 'right', fontWeight: 700, color: st.color }}>
-                  {count} ({pct}%)
-                </span>
-              </div>
-            );
-          })}
-        </section>
-
-        {/* Top gestes */}
-        {view.top.length > 0 && (
+        {/* Deux colonnes : position + top gestes interne */}
+        <div className="report-two-col">
+          {/* Répartition par position */}
           <section className="report-section">
-            <div className="report-section-title">Gestes les plus réalisés par l'interne</div>
-            {view.top.map((g) => {
-              const max = view.top[0].count || 1;
-              const pct = Math.round((g.count / max) * 100);
+            <div className="report-section-title">Autonomie — position opératoire</div>
+            {POSITIONS.map((p) => {
+              const st = getPositionStyle(p);
+              const count = view.stats.positions[p] || 0;
+              const pct = view.stats.total ? Math.round((count / view.stats.total) * 100) : 0;
               return (
-                <div key={g.id} className="report-bar-row">
-                  <span style={{ width: 170 }}>{g.label}</span>
+                <div key={p} className="report-bar-row">
+                  <span className="report-bar-label">{st.short}</span>
                   <div className="report-bar-track">
-                    <span className="report-bar-fill" style={{ width: `${pct}%`, background: g.color }} />
+                    <span className="report-bar-fill" style={{ width: `${pct}%`, background: st.color }} />
                   </div>
-                  <span style={{ width: 40, textAlign: 'right', fontWeight: 700, color: g.color }}>
-                    {g.count}×
+                  <span className="report-bar-value" style={{ color: st.color }}>
+                    {count} <small>({pct} %)</small>
                   </span>
                 </div>
               );
             })}
           </section>
-        )}
+
+          {/* Top gestes interne */}
+          {view.top.length > 0 && (
+            <section className="report-section">
+              <div className="report-section-title">Top gestes réalisés par l'interne</div>
+              {view.top.map((g) => {
+                const max = view.top[0].count || 1;
+                const pct = Math.round((g.count / max) * 100);
+                return (
+                  <div key={g.id} className="report-bar-row">
+                    <span className="report-bar-label report-bar-label--wide" title={g.fullName}>{g.label}</span>
+                    <div className="report-bar-track">
+                      <span className="report-bar-fill" style={{ width: `${pct}%`, background: g.color }} />
+                    </div>
+                    <span className="report-bar-value" style={{ color: g.color }}>{g.count}×</span>
+                  </div>
+                );
+              })}
+            </section>
+          )}
+        </div>
+
+        {/* Deux colonnes : case-mix patient + chirurgiens */}
+        <div className="report-two-col">
+          {/* Case-mix patient */}
+          {view.casemix.length > 0 && (
+            <section className="report-section">
+              <div className="report-section-title">Case-mix — Gestes sur le patient</div>
+              {view.casemix.map((g) => {
+                const max = view.casemix[0].count || 1;
+                const pct = Math.round((g.count / max) * 100);
+                return (
+                  <div key={g.id} className="report-bar-row">
+                    <span className="report-bar-label report-bar-label--wide" title={g.fullName}>{g.label}</span>
+                    <div className="report-bar-track">
+                      <span className="report-bar-fill" style={{ width: `${pct}%`, background: g.color }} />
+                    </div>
+                    <span className="report-bar-value" style={{ color: g.color }}>{g.count}×</span>
+                  </div>
+                );
+              })}
+            </section>
+          )}
+
+          {/* Chirurgiens encadreurs */}
+          {view.chirurgiens.length > 0 && (
+            <section className="report-section">
+              <div className="report-section-title">Chirurgiens encadreurs</div>
+              {view.chirurgiens.map((sg) => {
+                const max = view.chirurgiens[0].count || 1;
+                const pct = Math.round((sg.count / max) * 100);
+                return (
+                  <div key={sg.id} className="report-bar-row">
+                    <span className="report-bar-label report-bar-label--wide">{sg.label}</span>
+                    <div className="report-bar-track">
+                      <span className="report-bar-fill" style={{ width: `${pct}%`, background: sg.color || cfg.color }} />
+                    </div>
+                    <span className="report-bar-value" style={{ color: sg.color || cfg.color }}>{sg.count}</span>
+                  </div>
+                );
+              })}
+            </section>
+          )}
+        </div>
 
         {/* Journal des interventions */}
         <section className="report-section report-section--table">
-          <div className="report-section-title">Journal des interventions ({view.ints.length})</div>
+          <div className="report-section-title">
+            Journal des interventions ({view.ints.length})
+          </div>
           {view.ints.length === 0 ? (
             <p style={{ fontSize: 12, color: 'var(--r-text-3)' }}>
               Aucune intervention enregistrée pour ce semestre.
@@ -199,11 +266,13 @@ export default function SemesterReport() {
                       <td>{age != null ? age : '—'}</td>
                       <td>{surgeonFullName(it.surgeon)}</td>
                       <td>
-                        <span style={{ color: pos.color, fontWeight: 700 }}>{pos.short}</span>
+                        <span className="report-pos-badge" style={{ color: pos.color, borderColor: pos.color }}>
+                          {pos.short}
+                        </span>
                       </td>
                       <td>{it.patientProcs.map(procLabel).join(', ') || '—'}</td>
-                      <td style={{ fontWeight: 600 }}>{it.internProcs.map(procLabel).join(', ') || '—'}</td>
-                      <td>{it.notes || ''}</td>
+                      <td className="report-td-bold">{it.internProcs.map(procLabel).join(', ') || '—'}</td>
+                      <td className="report-td-notes">{it.notes || ''}</td>
                     </tr>
                   );
                 })}
@@ -213,9 +282,9 @@ export default function SemesterReport() {
         </section>
 
         <footer className="report-footer">
-          Document généré automatiquement par CardioThoNoa le {formatDateTimeLong(new Date())}.
-          <br />
-          Données personnelles conservées localement (RGPD) — usage strictement interne, non destiné à la diffusion.
+          <span>CardioThoNoa — {profile.prenom} {profile.nom}</span>
+          <span>Données personnelles conservées localement · usage strictement interne (RGPD)</span>
+          <span>Généré le {formatDateTimeLong(new Date())}</span>
         </footer>
       </div>
     </div>
@@ -237,12 +306,10 @@ function Kpi({ value, label, sub, color }) {
 function ProgressRow({ label, value, max, color }) {
   const pct = max > 0 ? Math.min(100, Math.round((value / max) * 100)) : 0;
   return (
-    <div>
-      <div className="flex justify-between" style={{ fontSize: 11, color: 'var(--r-text-2)', marginBottom: 4 }}>
+    <div className="report-progress-row">
+      <div className="report-progress-header">
         <span>{label}</span>
-        <span style={{ fontWeight: 700, color }}>
-          {value}/{max || '—'}
-        </span>
+        <span style={{ fontWeight: 700, color }}>{value}/{max}</span>
       </div>
       <div className="report-progress">
         <span style={{ width: `${pct}%`, background: color }} />
