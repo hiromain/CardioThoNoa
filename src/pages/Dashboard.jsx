@@ -1,6 +1,6 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronRight, Plus, List, Check, RefreshCw, AlertTriangle } from 'lucide-react';
+import { ChevronRight, List, Check, RefreshCw, AlertTriangle } from 'lucide-react';
 import { useData, useCurrentSemester } from '../store/hooks';
 import { useStore } from '../store/useStore';
 import { getSpecialty, getPositionStyle, POSITIONS } from '../data/constants';
@@ -13,58 +13,11 @@ import {
 import { kpis, specialtySplit, topInternProcedures, interventionsPerMonth } from '../lib/stats';
 import { formatDate, semesterTimeProgress, semesterStatus, STATUS_LABELS } from '../lib/dates';
 import { Card } from '../components/ui/Card';
-import { StatCard } from '../components/ui/StatCard';
 import { Avatar } from '../components/ui/Avatar';
 import { SectionTitle } from '../components/Section';
 import { InterventionRow } from '../components/InterventionRow';
 import { EmptyState } from '../components/ui/EmptyState';
 import { Button } from '../components/ui/Button';
-
-function Donut({ split, total }) {
-  const r = 22;
-  const circ = 2 * Math.PI * r;
-
-  // Au montage, animer les arcs de 0 vers leur cible via la classe .donut-arc.
-  const [drawn, setDrawn] = useState(false);
-  useEffect(() => {
-    const t = requestAnimationFrame(() => setDrawn(true));
-    return () => cancelAnimationFrame(t);
-  }, []);
-
-  // Calculer les arcs avec offset cumulatif (fonctionne pour N spécialités).
-  let cumFrac = 0;
-  const arcs = split
-    .filter((s) => s.value > 0)
-    .map((s) => {
-      const frac = total ? s.value / total : 0;
-      const arc = drawn ? circ * frac : 0;
-      const offset = cumFrac;
-      cumFrac += frac;
-      return { type: s.type, color: s.color, arc, offset };
-    });
-
-  return (
-    <svg width={64} height={64} viewBox="0 0 64 64" className="shrink-0" aria-hidden="true">
-      <circle cx="32" cy="32" r={r} fill="none" stroke="var(--surface-2)" strokeWidth="12" />
-      {arcs.map(({ type, color, arc, offset }) => (
-        <circle
-          key={type}
-          className="donut-arc"
-          cx="32"
-          cy="32"
-          r={r}
-          fill="none"
-          stroke={color}
-          strokeWidth="12"
-          strokeDasharray={`${arc} ${circ}`}
-          strokeDashoffset={`-${circ * offset}`}
-          strokeLinecap="round"
-          transform="rotate(-90 32 32)"
-        />
-      ))}
-    </svg>
-  );
-}
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -94,7 +47,6 @@ export default function Dashboard() {
     return kpis(interventionsForSemester(data, prev.id));
   }, [data, semester]);
 
-  // 6 derniers mois d'activité (interventions/mois) pour la sparkline.
   const sparkline = useMemo(() => {
     const months = interventionsPerMonth(data.interventions).slice(-6);
     const counts = months.map((m) => m.count);
@@ -122,20 +74,28 @@ export default function Dashboard() {
   const obj = semester.objectives || { interventions: 30, gestes: 20 };
   const timeProg = Math.round(semesterTimeProgress(semester) * 100);
   const status = semesterStatus(semester);
+  const arcLength = 125.66; // π × 40 (rayon de l'arc demi-cercle)
+  const arcFill = Math.round(Math.min(1, stats.total / obj.interventions) * arcLength * 10) / 10;
+  const gestesOk = stats.internGestes >= obj.gestes;
+  const opPct = stats.total > 0
+    ? Math.round(((stats.positions[POSITIONS[0]] || 0) / stats.total) * 100)
+    : 0;
 
   return (
     <div>
-      {/* Header */}
+      {/* ── Header ── */}
       <div className="header-gradient relative overflow-hidden px-5 pt-safe">
         <div className="orb orb-1" aria-hidden="true" />
         <div className="orb orb-2" aria-hidden="true" />
         <div className="orb orb-3" aria-hidden="true" />
         <div className="relative pt-5 pb-6">
-          <div className="flex items-center justify-between mb-4">
+
+          {/* Greeting + avatar */}
+          <div className="flex items-center justify-between mb-5">
             <div>
               <div className="text-[13px] text-white/60">{greeting},</div>
               <div className="text-[22px] font-extrabold text-white">
-                Dr {data.profile?.prenom} {data.profile?.nom} 👋
+                Dr {data.profile?.prenom} {data.profile?.nom}
               </div>
             </div>
             <div className="relative shrink-0">
@@ -144,30 +104,82 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* Semestre card */}
-          <div
-            className="glass-premium p-4"
-            style={{
-              background: 'rgba(255,255,255,0.1)',
-              backdropFilter: 'blur(22px)',
-              WebkitBackdropFilter: 'blur(22px)',
-              boxShadow: 'var(--shadow-glow)',
-            }}
-          >
-            <div className="flex justify-between items-start mb-2.5">
-              <div className="min-w-0">
-                <div className="text-[11px] text-white/50 font-semibold uppercase tracking-wide">
-                  Semestre en cours
-                </div>
-                <div className="text-[15px] font-bold text-white mt-0.5">
-                  {semester.label} — {cfg.label}
-                </div>
-                <div className="text-xs text-white/60 mt-0.5 truncate">
-                  {formatDate(semester.startDate)} – {formatDate(semester.endDate)}
-                </div>
+          {/* Arc de progression + infos semestre */}
+          <div className="flex items-center gap-4">
+            {/* Jauge demi-cercle */}
+            <div className="relative shrink-0" style={{ width: 96, height: 60 }}>
+              <svg viewBox="0 0 96 60" width={96} height={60} aria-hidden="true">
+                {/* Piste de fond */}
+                <path
+                  d="M8 56 A40 40 0 0 1 88 56"
+                  fill="none"
+                  stroke="rgba(255,255,255,0.12)"
+                  strokeWidth={8}
+                  strokeLinecap="round"
+                />
+                {/* Arc de progression */}
+                <path
+                  d="M8 56 A40 40 0 0 1 88 56"
+                  fill="none"
+                  stroke="#6BEFA0"
+                  strokeWidth={8}
+                  strokeLinecap="round"
+                  strokeDasharray={`${arcFill} 200`}
+                />
+                {/* Chiffre central */}
+                <text
+                  x="48"
+                  y="47"
+                  textAnchor="middle"
+                  fill="white"
+                  fontSize={22}
+                  fontWeight={800}
+                  fontFamily="Outfit,sans-serif"
+                >
+                  {stats.total}
+                </text>
+              </svg>
+              <div className="absolute bottom-0 left-0 right-0 text-center text-[10px] text-white/40">
+                / {obj.interventions} obj.
               </div>
+            </div>
+
+            {/* Infos semestre */}
+            <div className="flex-1 min-w-0">
+              <div className="text-[10px] text-white/40 uppercase tracking-wide mb-0.5 truncate">
+                {semester.label} · {cfg.label}
+              </div>
+              <div className="text-[13px] font-bold text-white mb-2 truncate">
+                {formatDate(semester.startDate)} – {formatDate(semester.endDate)}
+              </div>
+              {/* Barre de temps écoulé */}
+              <div className="flex items-center gap-2 mb-2">
+                <div className="flex-1 h-[3px] rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.12)' }}>
+                  <div className="h-full rounded-full" style={{ width: `${timeProg}%`, background: 'rgba(255,255,255,0.5)' }} />
+                </div>
+                <span className="text-[10px] text-white/40 whitespace-nowrap">{timeProg}% écoulé</span>
+              </div>
+              {/* Ligne gestes */}
+              <div className="flex items-center gap-1.5">
+                <span
+                  className="text-[14px] font-extrabold leading-none"
+                  style={{ color: gestesOk ? '#6BEFA0' : 'white' }}
+                >
+                  {stats.internGestes}
+                </span>
+                <span className="text-[10px] text-white/45">gestes · obj. {obj.gestes}</span>
+                {gestesOk && (
+                  <span
+                    className="text-[10px] font-bold px-1.5 py-0.5 rounded-pill"
+                    style={{ background: 'rgba(107,239,160,0.2)', color: '#6BEFA0' }}
+                  >
+                    ✓
+                  </span>
+                )}
+              </div>
+              {/* Badge statut */}
               <span
-                className="shrink-0 px-2.5 py-1 rounded-pill text-[11px] font-bold"
+                className="mt-2 inline-block px-2.5 py-0.5 rounded-pill text-[10px] font-bold"
                 style={{
                   background: status === 'en_cours' ? 'rgba(39,174,96,0.25)' : 'rgba(255,255,255,0.18)',
                   color: status === 'en_cours' ? '#6BEFA0' : '#fff',
@@ -176,59 +188,69 @@ export default function Dashboard() {
                 {STATUS_LABELS[status].toUpperCase()}
               </span>
             </div>
-
-            <div className="flex gap-2 mb-2">
-              <ObjBar label="Interventions" value={stats.total} max={obj.interventions} color="#6BEFA0" />
-              <ObjBar label="Gestes" value={stats.internGestes} max={obj.gestes} color="#60AEFE" />
-            </div>
-            <div className="text-[11px] text-white/40">{timeProg}% du semestre écoulé</div>
           </div>
 
-          <button
-            type="button"
-            onClick={() => navigate('/interventions/nouvelle')}
-            className="mt-4 w-full flex items-center justify-center gap-2 bg-white text-primary font-bold rounded-pill py-3 active:scale-[0.98] transition-transform"
-          >
-            <Plus size={18} strokeWidth={2.5} /> Nouvelle intervention
-          </button>
         </div>
       </div>
 
-      {/* Body */}
+      {/* ── Body ── */}
       <div className="px-4 py-5 flex flex-col gap-6">
+
+        {/* KPI chips + ribbon top geste */}
         <div className="anim-fade-up stagger-1">
-          <SectionTitle>Ce semestre</SectionTitle>
-          <div className="flex gap-2.5">
-            <StatCard
-              value={stats.total}
-              label="Interventions"
-              sub={`objectif ${obj.interventions}`}
-              color="var(--primary)"
-              badge={prevStats ? <Delta diff={stats.total - prevStats.total} /> : null}
-            />
-            <StatCard
-              value={stats.internGestes}
-              label="Gestes réalisés"
-              sub={`objectif ${obj.gestes}`}
-              color={cfg.color}
-              badge={prevStats ? <Delta diff={stats.internGestes - prevStats.internGestes} /> : null}
-            />
-            <StatCard value={stats.surgeons} label="Chirurgiens" color="var(--text-2)" />
+          <div className="flex gap-2.5 mb-3">
+            {/* Interventions */}
+            <div className="flex-1 bg-surface rounded-lg border border-line shadow-sm p-3 text-center">
+              <div className="text-[26px] font-extrabold leading-none" style={{ color: 'var(--primary)' }}>
+                {stats.total}
+              </div>
+              <div className="text-[10px] text-ink-3 mt-1">Interventions</div>
+              {prevStats && (
+                <div className="mt-0.5">
+                  <Delta diff={stats.total - prevStats.total} />
+                </div>
+              )}
+            </div>
+            {/* Chirurgiens */}
+            <div className="flex-1 bg-surface rounded-lg border border-line shadow-sm p-3 text-center">
+              <div className="text-[26px] font-extrabold leading-none" style={{ color: 'var(--primary)' }}>
+                {stats.surgeons}
+              </div>
+              <div className="text-[10px] text-ink-3 mt-1">Chirurgiens</div>
+            </div>
+            {/* % Opérateur */}
+            <div
+              className="flex-1 rounded-lg border shadow-sm p-3 text-center"
+              style={{ background: 'rgba(39,174,96,0.07)', borderColor: 'rgba(39,174,96,0.22)' }}
+            >
+              <div className="text-[26px] font-extrabold leading-none" style={{ color: '#27AE60' }}>
+                {opPct}%
+              </div>
+              <div className="text-[10px] mt-1" style={{ color: 'rgba(39,174,96,0.75)' }}>Opérateur</div>
+            </div>
           </div>
+
+          {/* Ribbon top geste */}
           {topGeste && (
-            <div className="mt-2.5">
-              <span
-                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-pill text-[12px] font-semibold"
-                style={{ background: `${topGeste.color}1A`, color: topGeste.color }}
-              >
-                <span aria-hidden="true">🏆</span>
-                <span>Top geste · {topGeste.label}</span>
-                <span className="font-bold">×{topGeste.count}</span>
+            <div
+              className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg"
+              style={{
+                background: `${topGeste.color}0F`,
+                borderLeft: `3px solid ${topGeste.color}`,
+              }}
+            >
+              <span className="text-[15px] shrink-0" aria-hidden="true">🏆</span>
+              <span className="text-[12px] font-semibold flex-1 min-w-0 truncate" style={{ color: topGeste.color }}>
+                Top geste · {topGeste.label}
+              </span>
+              <span className="text-[14px] font-extrabold shrink-0" style={{ color: topGeste.color }}>
+                ×{topGeste.count}
               </span>
             </div>
           )}
         </div>
 
+        {/* Autonomie (inchangé) */}
         {stats.total > 0 && (
           <div className="anim-fade-up stagger-2">
             <SectionTitle>Autonomie</SectionTitle>
@@ -269,51 +291,50 @@ export default function Dashboard() {
           </div>
         )}
 
+        {/* Répartition : 3 cartes colorées */}
         <div className="anim-fade-up stagger-2">
           <SectionTitle>Répartition globale</SectionTitle>
-          <Card>
-            <div className="flex gap-3 items-center">
-              <Donut split={split} total={totalAll} />
-              <div className="flex-1">
-                {split.map((s) => (
-                  <div key={s.type} className="flex justify-between mb-1.5">
-                    <div className="flex items-center gap-1.5">
-                      <span className="w-2.5 h-2.5 rounded-full" style={{ background: s.color }} />
-                      <span className="text-[13px] text-ink-1">{s.label}</span>
-                    </div>
-                    <span className="text-[13px] font-bold text-ink-1">
-                      {s.value} {totalAll ? `(${Math.round((s.value / totalAll) * 100)}%)` : ''}
-                    </span>
-                  </div>
-                ))}
-                <div className="h-px bg-line my-2" />
-                <div className="flex justify-between">
-                  <span className="text-xs text-ink-2">Total toutes périodes</span>
-                  <span className="text-xs font-bold text-ink-1">{totalAll} interventions</span>
+          <div className="flex gap-2.5">
+            {split.map((s) => (
+              <div
+                key={s.type}
+                className="flex-1 bg-surface rounded-lg border border-line shadow-sm p-3 text-center"
+                style={{ borderLeftWidth: 3, borderLeftColor: s.color }}
+              >
+                <div className="text-[22px] font-extrabold leading-none" style={{ color: s.color }}>
+                  {s.value}
+                </div>
+                <div className="text-[10px] font-semibold mt-1" style={{ color: s.color }}>
+                  {s.label}
+                </div>
+                <div className="text-[10px] text-ink-3 mt-0.5">
+                  {totalAll ? `${Math.round((s.value / totalAll) * 100)}%` : '0%'}
                 </div>
               </div>
-            </div>
-          </Card>
+            ))}
+          </div>
+          <div className="text-[11px] text-ink-3 text-center mt-2">
+            {totalAll} interventions au total
+          </div>
         </div>
 
-        {sparkline.counts.length >= 2 && (
+        {/* Activité : barres mensuelles */}
+        {sparkline.months.length >= 2 && (
           <div className="anim-fade-up stagger-3">
             <SectionTitle>Activité récente</SectionTitle>
             <Card>
-              <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center justify-between mb-3">
                 <span className="text-[13px] text-ink-2">6 derniers mois</span>
                 <span className="text-[13px] font-bold text-ink-1">
                   {sparkline.total} interventions
                 </span>
               </div>
-              <Sparkline counts={sparkline.counts} color="var(--primary)" />
-              <span className="sr-only">
-                {sparkline.total} interventions réparties sur les 6 derniers mois.
-              </span>
+              <MonthBars months={sparkline.months} />
             </Card>
           </div>
         )}
 
+        {/* Lien semestres */}
         <button
           type="button"
           onClick={() => navigate('/semestres')}
@@ -333,6 +354,7 @@ export default function Dashboard() {
           <ChevronRight size={18} className="text-ink-3" />
         </button>
 
+        {/* Interventions récentes (inchangé) */}
         <div className="anim-fade-up stagger-4">
           <SectionTitle
             action={
@@ -363,6 +385,7 @@ export default function Dashboard() {
             </Card>
           )}
         </div>
+
       </div>
     </div>
   );
@@ -390,75 +413,53 @@ function SyncDot({ status }) {
   );
 }
 
-function Sparkline({ counts, color = 'var(--primary)' }) {
-  const W = 100;
-  const H = 32;
-  const pad = 3;
-  const max = Math.max(...counts, 1);
-  const n = counts.length;
-  const points = counts.map((c, i) => {
-    const x = n > 1 ? (i / (n - 1)) * (W - pad * 2) + pad : W / 2;
-    const y = H - pad - (c / max) * (H - pad * 2);
-    return [x, y];
-  });
-  const poly = points.map(([x, y]) => `${x},${y}`).join(' ');
-  const last = points[points.length - 1];
+function MonthBars({ months }) {
+  const maxCount = Math.max(...months.map((m) => m.count), 1);
+  const lastIdx = months.length - 1;
   return (
-    <svg
-      viewBox={`0 0 ${W} ${H}`}
-      preserveAspectRatio="none"
-      width="100%"
-      height={H}
-      className="block"
-      aria-hidden="true"
-    >
-      <polyline
-        points={poly}
-        fill="none"
-        stroke={color}
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        vectorEffect="non-scaling-stroke"
-      />
-      {last && <circle cx={last[0]} cy={last[1]} r="2.2" fill={color} vectorEffect="non-scaling-stroke" />}
-    </svg>
+    <div className="flex items-end gap-1.5" style={{ height: 60 }}>
+      {months.map((m, i) => {
+        const isLast = i === lastIdx;
+        const barH = Math.max((m.count / maxCount) * 46, m.count > 0 ? 4 : 2);
+        const abbr = m.label.split(' ')[0].slice(0, 4);
+        return (
+          <div key={m.key} className="flex-1 flex flex-col items-center justify-end gap-1.5" style={{ height: 60 }}>
+            <div
+              className="w-full rounded-t-[3px]"
+              style={{
+                height: barH,
+                background: isLast ? 'var(--primary)' : 'rgba(30,58,95,0.18)',
+              }}
+            />
+            <span
+              className="text-[9px] leading-none"
+              style={{
+                color: isLast ? 'var(--primary)' : 'var(--text-3)',
+                fontWeight: isLast ? 700 : 400,
+              }}
+            >
+              {abbr}
+            </span>
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
 function Delta({ diff }) {
   const up = diff > 0;
   const down = diff < 0;
-  const color = up ? '#27AE60' : down ? 'var(--text-3)' : 'var(--text-3)';
+  const color = up ? '#27AE60' : 'var(--text-3)';
   const arrow = up ? '▲' : down ? '▼' : '→';
-  const sign = up ? `+${diff}` : down ? `${diff}` : '0';
+  const sign = up ? `+${diff}` : `${diff}`;
   return (
     <span
       className="text-[10px] font-bold tabular-nums"
       style={{ color }}
-      aria-label={`${up ? '+' : down ? '' : ''}${diff} par rapport au semestre précédent`}
+      aria-label={`${up ? '+' : ''}${diff} par rapport au semestre précédent`}
     >
       {arrow} {sign}
     </span>
-  );
-}
-
-function ObjBar({ label, value, max, color }) {
-  const pct = max > 0 ? Math.min(100, Math.round((value / max) * 100)) : 0;
-  return (
-    <div className="flex-1">
-      <div className="flex justify-between mb-1">
-        <span className="text-[11px] text-white/50">{label}</span>
-        <span className="text-[11px] font-bold text-white">
-          {value}/{max}
-        </span>
-      </div>
-      <div className="h-[5px] bg-white/15 rounded-full overflow-hidden">
-        <div
-          className="h-full rounded-full transition-[width] duration-700"
-          style={{ width: `${pct}%`, background: color, boxShadow: `0 0 6px ${color}55` }}
-        />
-      </div>
-    </div>
   );
 }
