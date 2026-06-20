@@ -45,7 +45,7 @@ export function AppLayout() {
       <Sidebar />
       <div className="relative z-10 min-h-screen flex flex-col lg:ml-60">
         <div
-          className={`w-full max-w-app lg:max-w-2xl mx-auto flex flex-col flex-1 ${
+          className={`w-full max-w-app mx-auto lg:max-w-none lg:mx-0 flex flex-col flex-1 ${
             !hideNav ? 'pb-[88px] lg:pb-0' : ''
           }`}
         >

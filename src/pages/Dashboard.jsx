@@ -35,18 +35,15 @@ export default function Dashboard() {
     () => data.interventions.slice(0, 5).map((i) => resolveIntervention(data, i)),
     [data]
   );
-
   const topGeste = useMemo(
     () => topInternProcedures(data, semInterventions, 1)[0] || null,
     [data, semInterventions]
   );
-
   const prevStats = useMemo(() => {
     const prev = semester ? previousSemester(data, semester.id) : null;
     if (!prev) return null;
     return kpis(interventionsForSemester(data, prev.id));
   }, [data, semester]);
-
   const sparkline = useMemo(() => {
     const months = interventionsPerMonth(data.interventions).slice(-6);
     const counts = months.map((m) => m.count);
@@ -74,8 +71,7 @@ export default function Dashboard() {
   const obj = semester.objectives || { interventions: 30, gestes: 20 };
   const timeProg = Math.round(semesterTimeProgress(semester) * 100);
   const status = semesterStatus(semester);
-  const arcLength = 125.66; // π × 40 (rayon de l'arc demi-cercle)
-  const arcFill = Math.round(Math.min(1, stats.total / obj.interventions) * arcLength * 10) / 10;
+  const arcFill = Math.round(Math.min(1, stats.total / obj.interventions) * 125.66 * 10) / 10;
   const gestesOk = stats.internGestes >= obj.gestes;
   const opPct = stats.total > 0
     ? Math.round(((stats.positions[POSITIONS[0]] || 0) / stats.total) * 100)
@@ -84,17 +80,17 @@ export default function Dashboard() {
   return (
     <div>
       {/* ── Header ── */}
-      <div className="header-gradient relative overflow-hidden px-5 pt-safe">
+      <div className="header-gradient relative overflow-hidden px-5 lg:px-8 pt-safe">
         <div className="orb orb-1" aria-hidden="true" />
         <div className="orb orb-2" aria-hidden="true" />
         <div className="orb orb-3" aria-hidden="true" />
-        <div className="relative pt-5 pb-6">
+        <div className="relative pt-5 lg:pt-7 pb-6 lg:pb-8">
 
           {/* Greeting + avatar */}
-          <div className="flex items-center justify-between mb-5">
+          <div className="flex items-center justify-between mb-5 lg:mb-7">
             <div>
-              <div className="text-[13px] text-white/60">{greeting},</div>
-              <div className="text-[22px] font-extrabold text-white">
+              <div className="text-[13px] lg:text-[14px] text-white/60">{greeting},</div>
+              <div className="text-[22px] lg:text-[28px] font-extrabold text-white leading-tight">
                 Dr {data.profile?.prenom} {data.profile?.nom}
               </div>
             </div>
@@ -104,80 +100,48 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* Arc de progression + infos semestre */}
-          <div className="flex items-center gap-4">
-            {/* Jauge demi-cercle */}
-            <div className="relative shrink-0" style={{ width: 96, height: 60 }}>
-              <svg viewBox="0 0 96 60" width={96} height={60} aria-hidden="true">
-                {/* Piste de fond */}
-                <path
-                  d="M8 56 A40 40 0 0 1 88 56"
-                  fill="none"
-                  stroke="rgba(255,255,255,0.12)"
-                  strokeWidth={8}
-                  strokeLinecap="round"
-                />
-                {/* Arc de progression */}
-                <path
-                  d="M8 56 A40 40 0 0 1 88 56"
-                  fill="none"
-                  stroke="#6BEFA0"
-                  strokeWidth={8}
-                  strokeLinecap="round"
-                  strokeDasharray={`${arcFill} 200`}
-                />
-                {/* Chiffre central */}
-                <text
-                  x="48"
-                  y="47"
-                  textAnchor="middle"
-                  fill="white"
-                  fontSize={22}
-                  fontWeight={800}
-                  fontFamily="Outfit,sans-serif"
-                >
+          {/* Arc + infos semestre — desktop: 3 colonnes */}
+          <div className="flex items-start gap-4 lg:gap-8">
+
+            {/* Jauge demi-cercle — plus grande sur desktop */}
+            <div className="relative shrink-0 w-24 h-[60px] lg:w-36 lg:h-[90px]">
+              <svg viewBox="0 0 96 60" width="100%" height="100%" aria-hidden="true">
+                <path d="M8 56 A40 40 0 0 1 88 56" fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth={8} strokeLinecap="round" />
+                <path d="M8 56 A40 40 0 0 1 88 56" fill="none" stroke="#6BEFA0" strokeWidth={8} strokeLinecap="round" strokeDasharray={`${arcFill} 200`} />
+                <text x="48" y="47" textAnchor="middle" fill="white" fontSize={22} fontWeight={800} fontFamily="Outfit,sans-serif">
                   {stats.total}
                 </text>
               </svg>
-              <div className="absolute bottom-0 left-0 right-0 text-center text-[10px] text-white/40">
+              <div className="absolute bottom-0 left-0 right-0 text-center text-[10px] lg:text-[11px] text-white/40">
                 / {obj.interventions} obj.
               </div>
             </div>
 
             {/* Infos semestre */}
             <div className="flex-1 min-w-0">
-              <div className="text-[10px] text-white/40 uppercase tracking-wide mb-0.5 truncate">
+              <div className="text-[10px] lg:text-[11px] text-white/40 uppercase tracking-wide mb-0.5 truncate">
                 {semester.label} · {cfg.label}
               </div>
-              <div className="text-[13px] font-bold text-white mb-2 truncate">
+              <div className="text-[13px] lg:text-[15px] font-bold text-white mb-2 truncate">
                 {formatDate(semester.startDate)} – {formatDate(semester.endDate)}
               </div>
-              {/* Barre de temps écoulé */}
               <div className="flex items-center gap-2 mb-2">
                 <div className="flex-1 h-[3px] rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.12)' }}>
                   <div className="h-full rounded-full" style={{ width: `${timeProg}%`, background: 'rgba(255,255,255,0.5)' }} />
                 </div>
                 <span className="text-[10px] text-white/40 whitespace-nowrap">{timeProg}% écoulé</span>
               </div>
-              {/* Ligne gestes */}
               <div className="flex items-center gap-1.5">
-                <span
-                  className="text-[14px] font-extrabold leading-none"
-                  style={{ color: gestesOk ? '#6BEFA0' : 'white' }}
-                >
+                <span className="text-[14px] font-extrabold leading-none" style={{ color: gestesOk ? '#6BEFA0' : 'white' }}>
                   {stats.internGestes}
                 </span>
                 <span className="text-[10px] text-white/45">gestes · obj. {obj.gestes}</span>
                 {gestesOk && (
-                  <span
-                    className="text-[10px] font-bold px-1.5 py-0.5 rounded-pill"
-                    style={{ background: 'rgba(107,239,160,0.2)', color: '#6BEFA0' }}
-                  >
+                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-pill" style={{ background: 'rgba(107,239,160,0.2)', color: '#6BEFA0' }}>
                     ✓
                   </span>
                 )}
               </div>
-              {/* Badge statut */}
               <span
                 className="mt-2 inline-block px-2.5 py-0.5 rounded-pill text-[10px] font-bold"
                 style={{
@@ -188,59 +152,55 @@ export default function Dashboard() {
                 {STATUS_LABELS[status].toUpperCase()}
               </span>
             </div>
-          </div>
 
+            {/* Colonne desktop uniquement : total toutes périodes */}
+            <div className="hidden lg:flex flex-col justify-center shrink-0 pl-8 border-l border-white/15" style={{ minHeight: 90 }}>
+              <div className="text-[11px] text-white/40 uppercase tracking-wider mb-1">Total formation</div>
+              <div className="text-[48px] font-extrabold text-white leading-none">{totalAll}</div>
+              <div className="text-[12px] text-white/45 mt-1">interventions</div>
+            </div>
+
+          </div>
         </div>
       </div>
 
       {/* ── Body ── */}
-      <div className="px-4 py-5 flex flex-col gap-6">
+      <div className="px-4 lg:px-8 py-5 lg:py-7 flex flex-col gap-5 lg:gap-6">
 
         {/* KPI chips + ribbon top geste */}
         <div className="anim-fade-up stagger-1">
-          <div className="flex gap-2.5 mb-3">
-            {/* Interventions */}
-            <div className="flex-1 bg-surface rounded-lg border border-line shadow-sm p-3 text-center">
-              <div className="text-[26px] font-extrabold leading-none" style={{ color: 'var(--primary)' }}>
+          <div className="flex gap-2.5 lg:gap-4 mb-3">
+            <div className="flex-1 bg-surface rounded-lg border border-line shadow-sm p-3 lg:p-4 text-center">
+              <div className="text-[26px] lg:text-[32px] font-extrabold leading-none" style={{ color: 'var(--primary)' }}>
                 {stats.total}
               </div>
-              <div className="text-[10px] text-ink-3 mt-1">Interventions</div>
-              {prevStats && (
-                <div className="mt-0.5">
-                  <Delta diff={stats.total - prevStats.total} />
-                </div>
-              )}
+              <div className="text-[10px] lg:text-[12px] text-ink-3 mt-1">Interventions</div>
+              {prevStats && <div className="mt-0.5"><Delta diff={stats.total - prevStats.total} /></div>}
             </div>
-            {/* Chirurgiens */}
-            <div className="flex-1 bg-surface rounded-lg border border-line shadow-sm p-3 text-center">
-              <div className="text-[26px] font-extrabold leading-none" style={{ color: 'var(--primary)' }}>
+            <div className="flex-1 bg-surface rounded-lg border border-line shadow-sm p-3 lg:p-4 text-center">
+              <div className="text-[26px] lg:text-[32px] font-extrabold leading-none" style={{ color: 'var(--primary)' }}>
                 {stats.surgeons}
               </div>
-              <div className="text-[10px] text-ink-3 mt-1">Chirurgiens</div>
+              <div className="text-[10px] lg:text-[12px] text-ink-3 mt-1">Chirurgiens</div>
             </div>
-            {/* % Opérateur */}
             <div
-              className="flex-1 rounded-lg border shadow-sm p-3 text-center"
+              className="flex-1 rounded-lg border shadow-sm p-3 lg:p-4 text-center"
               style={{ background: 'rgba(39,174,96,0.07)', borderColor: 'rgba(39,174,96,0.22)' }}
             >
-              <div className="text-[26px] font-extrabold leading-none" style={{ color: '#27AE60' }}>
+              <div className="text-[26px] lg:text-[32px] font-extrabold leading-none" style={{ color: '#27AE60' }}>
                 {opPct}%
               </div>
-              <div className="text-[10px] mt-1" style={{ color: 'rgba(39,174,96,0.75)' }}>Opérateur</div>
+              <div className="text-[10px] lg:text-[12px] mt-1" style={{ color: 'rgba(39,174,96,0.75)' }}>Opérateur</div>
             </div>
           </div>
 
-          {/* Ribbon top geste */}
           {topGeste && (
             <div
               className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg"
-              style={{
-                background: `${topGeste.color}0F`,
-                borderLeft: `3px solid ${topGeste.color}`,
-              }}
+              style={{ background: `${topGeste.color}0F`, borderLeft: `3px solid ${topGeste.color}` }}
             >
               <span className="text-[15px] shrink-0" aria-hidden="true">🏆</span>
-              <span className="text-[12px] font-semibold flex-1 min-w-0 truncate" style={{ color: topGeste.color }}>
+              <span className="text-[12px] lg:text-[13px] font-semibold flex-1 min-w-0 truncate" style={{ color: topGeste.color }}>
                 Top geste · {topGeste.label}
               </span>
               <span className="text-[14px] font-extrabold shrink-0" style={{ color: topGeste.color }}>
@@ -250,142 +210,133 @@ export default function Dashboard() {
           )}
         </div>
 
-        {/* Autonomie (inchangé) */}
-        {stats.total > 0 && (
-          <div className="anim-fade-up stagger-2">
-            <SectionTitle>Autonomie</SectionTitle>
-            <Card>
-              <div className="flex h-2 rounded-full overflow-hidden mb-3 bg-surface-2">
-                {POSITIONS.map((pos) => {
-                  const count = stats.positions[pos] || 0;
-                  if (!count) return null;
-                  const pct = (count / stats.total) * 100;
-                  return (
-                    <div
-                      key={pos}
-                      style={{ width: `${pct}%`, background: getPositionStyle(pos).color }}
-                    />
-                  );
-                })}
-              </div>
-              <div className="flex flex-col gap-2">
-                {POSITIONS.map((pos) => {
-                  const count = stats.positions[pos] || 0;
-                  if (!count) return null;
-                  const ps = getPositionStyle(pos);
-                  const pct = Math.round((count / stats.total) * 100);
-                  return (
-                    <div key={pos} className="flex items-center justify-between">
-                      <div className="flex items-center gap-1.5">
-                        <span className="w-2.5 h-2.5 rounded-full" style={{ background: ps.color }} />
-                        <span className="text-[13px] text-ink-1">{ps.short}</span>
+        {/* Grille 2 colonnes sur desktop : Autonomie + Activité */}
+        <div className="grid gap-5 lg:gap-6 lg:grid-cols-2">
+          {stats.total > 0 && (
+            <div className="anim-fade-up stagger-2">
+              <SectionTitle>Autonomie</SectionTitle>
+              <Card>
+                <div className="flex h-2 rounded-full overflow-hidden mb-3 bg-surface-2">
+                  {POSITIONS.map((pos) => {
+                    const count = stats.positions[pos] || 0;
+                    if (!count) return null;
+                    const pct = (count / stats.total) * 100;
+                    return (
+                      <div key={pos} style={{ width: `${pct}%`, background: getPositionStyle(pos).color }} />
+                    );
+                  })}
+                </div>
+                <div className="flex flex-col gap-2">
+                  {POSITIONS.map((pos) => {
+                    const count = stats.positions[pos] || 0;
+                    if (!count) return null;
+                    const ps = getPositionStyle(pos);
+                    const pct = Math.round((count / stats.total) * 100);
+                    return (
+                      <div key={pos} className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5">
+                          <span className="w-2.5 h-2.5 rounded-full" style={{ background: ps.color }} />
+                          <span className="text-[13px] text-ink-1">{ps.short}</span>
+                        </div>
+                        <span className="text-[13px] font-bold text-ink-1">
+                          {count} <span className="text-ink-3 font-semibold">({pct}%)</span>
+                        </span>
                       </div>
-                      <span className="text-[13px] font-bold text-ink-1">
-                        {count} <span className="text-ink-3 font-semibold">({pct}%)</span>
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            </Card>
-          </div>
-        )}
+                    );
+                  })}
+                </div>
+              </Card>
+            </div>
+          )}
 
-        {/* Répartition : 3 cartes colorées */}
-        <div className="anim-fade-up stagger-2">
+          {sparkline.months.length >= 2 && (
+            <div className="anim-fade-up stagger-2">
+              <SectionTitle>Activité récente</SectionTitle>
+              <Card>
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-[13px] text-ink-2">6 derniers mois</span>
+                  <span className="text-[13px] font-bold text-ink-1">{sparkline.total} interventions</span>
+                </div>
+                <MonthBars months={sparkline.months} />
+              </Card>
+            </div>
+          )}
+        </div>
+
+        {/* Répartition globale — pleine largeur */}
+        <div className="anim-fade-up stagger-3">
           <SectionTitle>Répartition globale</SectionTitle>
-          <div className="flex gap-2.5">
+          <div className="flex gap-2.5 lg:gap-4">
             {split.map((s) => (
               <div
                 key={s.type}
-                className="flex-1 bg-surface rounded-lg border border-line shadow-sm p-3 text-center"
+                className="flex-1 bg-surface rounded-lg border border-line shadow-sm p-3 lg:p-4 text-center"
                 style={{ borderLeftWidth: 3, borderLeftColor: s.color }}
               >
-                <div className="text-[22px] font-extrabold leading-none" style={{ color: s.color }}>
+                <div className="text-[22px] lg:text-[28px] font-extrabold leading-none" style={{ color: s.color }}>
                   {s.value}
                 </div>
-                <div className="text-[10px] font-semibold mt-1" style={{ color: s.color }}>
-                  {s.label}
-                </div>
-                <div className="text-[10px] text-ink-3 mt-0.5">
+                <div className="text-[10px] lg:text-[12px] font-semibold mt-1" style={{ color: s.color }}>{s.label}</div>
+                <div className="text-[10px] lg:text-[11px] text-ink-3 mt-0.5">
                   {totalAll ? `${Math.round((s.value / totalAll) * 100)}%` : '0%'}
                 </div>
               </div>
             ))}
           </div>
-          <div className="text-[11px] text-ink-3 text-center mt-2">
-            {totalAll} interventions au total
-          </div>
+          <div className="text-[11px] text-ink-3 text-center mt-2">{totalAll} interventions au total</div>
         </div>
 
-        {/* Activité : barres mensuelles */}
-        {sparkline.months.length >= 2 && (
-          <div className="anim-fade-up stagger-3">
-            <SectionTitle>Activité récente</SectionTitle>
-            <Card>
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-[13px] text-ink-2">6 derniers mois</span>
-                <span className="text-[13px] font-bold text-ink-1">
-                  {sparkline.total} interventions
-                </span>
-              </div>
-              <MonthBars months={sparkline.months} />
-            </Card>
-          </div>
-        )}
+        {/* Grille 2 colonnes sur desktop : Semestres + Récentes */}
+        <div className="grid gap-5 lg:gap-6 lg:grid-cols-2 lg:items-start">
 
-        {/* Lien semestres */}
-        <button
-          type="button"
-          onClick={() => navigate('/semestres')}
-          className="anim-fade-up stagger-3 flex items-center justify-between bg-surface rounded-lg p-4 border border-line shadow-sm active:scale-[0.99] transition-transform"
-        >
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-md flex items-center justify-center bg-primary/[0.08]">
-              <List size={17} className="text-primary" />
-            </div>
-            <div className="text-left">
-              <div className="text-sm font-semibold text-ink-1">Mes semestres</div>
-              <div className="text-xs text-ink-3">
-                {data.semesters.length} semestres · {totalAll} interventions au total
-              </div>
-            </div>
-          </div>
-          <ChevronRight size={18} className="text-ink-3" />
-        </button>
-
-        {/* Interventions récentes (inchangé) */}
-        <div className="anim-fade-up stagger-4">
-          <SectionTitle
-            action={
-              <button
-                onClick={() => navigate('/patients')}
-                className="text-xs text-primary font-semibold"
-              >
-                Tous les patients
-              </button>
-            }
+          <button
+            type="button"
+            onClick={() => navigate('/semestres')}
+            className="anim-fade-up stagger-3 flex items-center justify-between bg-surface rounded-lg p-4 lg:p-5 border border-line shadow-sm active:scale-[0.99] transition-transform w-full text-left"
           >
-            Récentes
-          </SectionTitle>
-          {recents.length === 0 ? (
-            <Card>
-              <EmptyState icon="🗓️" title="Aucune intervention" subtitle="Ajoutez votre première intervention." />
-            </Card>
-          ) : (
-            <Card padding="px-4 py-0">
-              {recents.map((i, idx) => (
-                <InterventionRow
-                  key={i.id}
-                  item={i}
-                  last={idx === recents.length - 1}
-                  onClick={() => navigate(`/interventions/${i.id}`)}
-                />
-              ))}
-            </Card>
-          )}
-        </div>
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 lg:w-11 lg:h-11 rounded-md flex items-center justify-center bg-primary/[0.08]">
+                <List size={17} className="text-primary" />
+              </div>
+              <div>
+                <div className="text-sm lg:text-base font-semibold text-ink-1">Mes semestres</div>
+                <div className="text-xs lg:text-sm text-ink-3">
+                  {data.semesters.length} semestres · {totalAll} interventions au total
+                </div>
+              </div>
+            </div>
+            <ChevronRight size={18} className="text-ink-3 shrink-0" />
+          </button>
 
+          <div className="anim-fade-up stagger-4">
+            <SectionTitle
+              action={
+                <button onClick={() => navigate('/patients')} className="text-xs text-primary font-semibold">
+                  Tous les patients
+                </button>
+              }
+            >
+              Récentes
+            </SectionTitle>
+            {recents.length === 0 ? (
+              <Card>
+                <EmptyState icon="🗓️" title="Aucune intervention" subtitle="Ajoutez votre première intervention." />
+              </Card>
+            ) : (
+              <Card padding="px-4 py-0">
+                {recents.map((i, idx) => (
+                  <InterventionRow
+                    key={i.id}
+                    item={i}
+                    last={idx === recents.length - 1}
+                    onClick={() => navigate(`/interventions/${i.id}`)}
+                  />
+                ))}
+              </Card>
+            )}
+          </div>
+
+        </div>
       </div>
     </div>
   );
@@ -426,17 +377,11 @@ function MonthBars({ months }) {
           <div key={m.key} className="flex-1 flex flex-col items-center justify-end gap-1.5" style={{ height: 60 }}>
             <div
               className="w-full rounded-t-[3px]"
-              style={{
-                height: barH,
-                background: isLast ? 'var(--primary)' : 'rgba(30,58,95,0.18)',
-              }}
+              style={{ height: barH, background: isLast ? 'var(--primary)' : 'rgba(30,58,95,0.18)' }}
             />
             <span
               className="text-[9px] leading-none"
-              style={{
-                color: isLast ? 'var(--primary)' : 'var(--text-3)',
-                fontWeight: isLast ? 700 : 400,
-              }}
+              style={{ color: isLast ? 'var(--primary)' : 'var(--text-3)', fontWeight: isLast ? 700 : 400 }}
             >
               {abbr}
             </span>
