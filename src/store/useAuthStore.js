@@ -40,6 +40,57 @@ export const useAuthStore = create((set, get) => ({
   authView: 'login',
   configured: isSupabaseConfigured,
 
+  // ── Rôle & centre (supervision multi-centres) ────────────────────────────
+  // Chargés depuis la table `profiles` après connexion (voir refreshProfile).
+  // 'intern' = usage standard ; 'admin' = super-admin global (catalogue de
+  // gestes partagé, supervision des internes/centres). Voir migration 0004.
+  role: 'intern',
+  isAdmin: false,
+  centreId: null,
+  profileLoaded: false,
+
+  // Recharge le profil (rôle + centre) depuis Supabase. Crée la ligne
+  // `profiles` au premier passage (rôle 'intern' par défaut). Démo/dev → intern.
+  refreshProfile: async () => {
+    const user = get().user;
+    if (!isSupabaseConfigured || !user || isLocalUser(user)) {
+      set({ role: 'intern', isAdmin: false, centreId: null, profileLoaded: true });
+      return 'intern';
+    }
+    const { data } = await supabase
+      .from('profiles')
+      .select('role, centre_id')
+      .eq('user_id', user.id)
+      .maybeSingle();
+    if (!data) {
+      // Première connexion : on crée la ligne profil (rôle interne par défaut).
+      const storeProfile = useStore.getState().profile;
+      const displayName = storeProfile
+        ? [storeProfile.prenom, storeProfile.nom].filter(Boolean).join(' ').trim() || null
+        : null;
+      const { data: created } = await supabase
+        .from('profiles')
+        .insert({ user_id: user.id, role: 'intern', display_name: displayName, email: user.email })
+        .select('role, centre_id')
+        .maybeSingle();
+      const role = created?.role ?? 'intern';
+      set({ role, isAdmin: role === 'admin', centreId: created?.centre_id ?? null, profileLoaded: true });
+      return role;
+    }
+    const role = data.role ?? 'intern';
+    set({ role, isAdmin: role === 'admin', centreId: data.centre_id ?? null, profileLoaded: true });
+    return role;
+  },
+
+  // Met à jour le centre de rattachement de l'utilisateur courant (Réglages /
+  // onboarding). N'affecte que sa propre ligne `profiles`.
+  setCentre: async (centreId) => {
+    const user = get().user;
+    set({ centreId });
+    if (!isSupabaseConfigured || !user || isLocalUser(user)) return;
+    await supabase.from('profiles').update({ centre_id: centreId }).eq('user_id', user.id);
+  },
+
   // ── Droit d'accès (achat unique) ──────────────────────────────────────────
   // `isPaid` est la clé du paywall : seul un compte ayant payé peut écrire des
   // données (voir le garde dans useStore.js) et synchroniser (voir syncEngine).
@@ -270,6 +321,10 @@ export const useAuthStore = create((set, get) => ({
       status: 'signed-out',
       user: null,
       isDemo: false,
+      role: 'intern',
+      isAdmin: false,
+      centreId: null,
+      profileLoaded: false,
       isPaid: false,
       plan: null,
       planEndDate: null,

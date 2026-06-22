@@ -9,11 +9,14 @@
 import { supabase, isSupabaseConfigured } from './supabaseClient';
 import { useStore } from '../store/useStore';
 import { useAuthStore, isLocalUser } from '../store/useAuthStore';
+import { fetchSharedCatalog } from './catalog';
 
 const SYNC_DEBOUNCE_MS = 4000;
 const LAST_USER_KEY = 'cardiothonoa-last-user-id';
+// NB : `procedureTypes` n'est plus synchronisé par-utilisateur — le catalogue de
+// gestes est désormais partagé (table `procedure_types`, voir lib/catalog.js).
 const SYNC_FIELDS = [
-  'services', 'surgeons', 'semesters', 'procedureTypes',
+  'services', 'surgeons', 'semesters',
   'interventions', 'currentSemesterId', 'profile',
 ];
 
@@ -25,7 +28,6 @@ function snapshotPayload(state, userId) {
     services: state.services,
     surgeons: state.surgeons,
     semesters: state.semesters,
-    procedure_types: state.procedureTypes,
     interventions: state.interventions,
     current_semester_id: state.currentSemesterId,
     profile: state.profile,
@@ -65,7 +67,6 @@ export async function pullSnapshot() {
     services: data.services,
     surgeons: data.surgeons,
     semesters: data.semesters,
-    procedureTypes: data.procedure_types,
     interventions: data.interventions,
     currentSemesterId: data.current_semester_id,
     profile: data.profile,
@@ -96,11 +97,25 @@ export async function completePurchase() {
   await pushSnapshot();
 }
 
+// Charge le catalogue de gestes partagé (table `procedure_types`) dans le store.
+// En cas d'échec (hors-ligne, non configuré), on conserve le seed local.
+export async function loadSharedCatalog() {
+  const catalog = await fetchSharedCatalog();
+  if (catalog && catalog.length) {
+    useStore.getState().setCatalog(catalog);
+  }
+}
+
 async function handleSignIn(userId) {
   const auth = useAuthStore.getState();
 
-  // Charger le droit d'accès AVANT de décider quoi charger (payé vs gratuit).
-  const isPaid = await auth.refreshEntitlement();
+  // Charger le droit d'accès ET le profil (rôle/centre) AVANT de décider quoi
+  // charger. Le catalogue partagé est chargé en parallèle (lecture pour tous).
+  const [isPaid] = await Promise.all([
+    auth.refreshEntitlement(),
+    auth.refreshProfile(),
+    loadSharedCatalog(),
+  ]);
 
   // Démo / dev : données locales déjà en place, aucune interaction cloud.
   const user = auth.user;

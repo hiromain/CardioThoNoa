@@ -42,12 +42,13 @@ function defaultProfile() {
 }
 
 // Champs de l'état synchronisés depuis le cloud. NB : `patients` est volontairement
-// absent — les données patient restent strictement locales (RGPD).
+// absent — les données patient restent strictement locales (RGPD). `procedureTypes`
+// est lui aussi absent : le catalogue de gestes est désormais PARTAGÉ (table
+// `procedure_types`, chargé séparément via lib/catalog.js + setCatalog).
 const CLOUD_FIELDS = [
   'services',
   'surgeons',
   'semesters',
-  'procedureTypes',
   'interventions',
   'currentSemesterId',
   'profile',
@@ -185,9 +186,14 @@ export const useStore = create(
         })),
 
       // ── Types de gestes ───────────────────────────────────────────────────
+      // Le catalogue « officiel » est partagé (table `procedure_types`, géré par
+      // les admins) et chargé via setCatalog. Les actions ci-dessous ne touchent
+      // que les gestes PERSONNELS (`local: true`) : un interne peut ajouter à la
+      // volée (au bloc) un geste manquant sans être bloqué ; il reste local,
+      // jamais synchronisé ni partagé.
       addProcedureType: guardWrite((data) => {
         const id = uid('pt');
-        set((s) => ({ procedureTypes: [...s.procedureTypes, { id, ...data }] }));
+        set((s) => ({ procedureTypes: [...s.procedureTypes, { id, local: true, ...data }] }));
         return id;
       }),
       updateProcedureType: guardWrite((id, patch) =>
@@ -200,6 +206,16 @@ export const useStore = create(
         set((s) => ({
           procedureTypes: s.procedureTypes.filter((x) => x.id !== id),
         }))),
+
+      // Applique le catalogue partagé venu du cloud (lib/catalog.js). On remplace
+      // les gestes « officiels » mais on PRÉSERVE les gestes personnels locaux
+      // (ids absents du catalogue cloud et marqués local).
+      setCatalog: (shared) =>
+        set((s) => {
+          const sharedIds = new Set(shared.map((p) => p.id));
+          const localExtras = s.procedureTypes.filter((p) => p.local && !sharedIds.has(p.id));
+          return { procedureTypes: [...shared, ...localExtras] };
+        }),
 
       // ── Interventions ─────────────────────────────────────────────────────
       addIntervention: guardWrite((data) => {

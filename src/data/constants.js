@@ -12,6 +12,13 @@ export const APP_USER = {
 export const APP_VERSION = '1.0.0';
 export const STORAGE_KEY = 'cardiothonoa-v1';
 
+// Rôles de compte (cf. table Supabase `profiles`).
+//   - 'intern' : utilisateur standard (interne en formation), usage par défaut.
+//   - 'admin'  : super-admin global (gère le catalogue de gestes partagé,
+//                supervise les internes et les centres). Voir supabase/migrations/
+//                0004_roles_centres_catalog.sql.
+export const ROLES = { INTERN: 'intern', ADMIN: 'admin' };
+
 // Portail de saisie EpiCard (registre national de chirurgie cardiaque).
 export const EPICARD_URL =
   'https://fsm.tentelemed.com/Ctms-fsm/portal/login?2&page_target=com.tentelemed.portal.pages.JumpBoardPage';

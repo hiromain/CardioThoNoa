@@ -8,6 +8,7 @@ import { Plus, Trash2, Check } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { SERVICE_TYPES } from '../../data/constants';
+import { listCentres } from '../../lib/adminQueries';
 import { Modal } from '../ui/Modal';
 import { Input, Select } from '../ui/Field';
 import { Button } from '../ui/Button';
@@ -52,6 +53,14 @@ export function OnboardingWizard() {
   const addSemester = useStore((s) => s.addSemester);
   const setCurrentSemester = useStore((s) => s.setCurrentSemester);
   const addSurgeon = useStore((s) => s.addSurgeon);
+  const setCentre = useAuthStore((s) => s.setCentre);
+
+  // Centres disponibles (rattachement facultatif pour la supervision admin).
+  const [centres, setCentres] = useState([]);
+  const [centreChoice, setCentreChoice] = useState('');
+  useEffect(() => {
+    listCentres().then(setCentres);
+  }, []);
 
   // Déclenchement : compte payé, pas en démo, jamais configuré, pas ignoré.
   // Verrouillé dans `open` une fois vrai pour ne pas se refermer dès que
@@ -116,6 +125,7 @@ export function OnboardingWizard() {
         setServiceId(id);
       }
       updateProfile({ hopital: serviceName.trim() });
+      if (centreChoice) setCentre(centreChoice);
     } else if (step === 3) {
       let id = semesterId;
       if (!id) {
@@ -264,6 +274,15 @@ export function OnboardingWizard() {
               value={serviceCity}
               onChange={(e) => setServiceCity(e.target.value)}
             />
+            {centres.length > 0 && (
+              <Select
+                label="Centre (supervision)"
+                placeholder="Aucun"
+                value={centreChoice}
+                onChange={(e) => setCentreChoice(e.target.value)}
+                options={centres.map((c) => ({ value: c.id, label: c.name }))}
+              />
+            )}
           </div>
         )}
 

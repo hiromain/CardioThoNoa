@@ -31,10 +31,12 @@ import {
   KeyRound,
   Mail,
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useData } from '../store/hooks';
 import { useStore } from '../store/useStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { triggerManualSync } from '../lib/syncEngine';
+import { listCentres } from '../lib/adminQueries';
 import {
   canPromptInstall,
   subscribeInstallPrompt,
@@ -66,7 +68,7 @@ import { SegmentedControl } from '../components/ui/SegmentedControl';
 import { Button } from '../components/ui/Button';
 import { SpecBadge } from '../components/SpecBadge';
 import { ConfirmDialog, Modal } from '../components/ui/Modal';
-import { Input } from '../components/ui/Field';
+import { Input, Select } from '../components/ui/Field';
 import { ServiceFormModal } from '../components/forms/ServiceFormModal';
 import { SurgeonFormModal } from '../components/forms/SurgeonFormModal';
 import { ProcedureTypeFormModal } from '../components/forms/ProcedureTypeFormModal';
@@ -76,6 +78,7 @@ import { ProfileFormModal } from '../components/forms/ProfileFormModal';
 const scopeLabel = (v) => SCOPES.find((s) => s.value === v)?.label || v;
 
 export default function Settings() {
+  const navigate = useNavigate();
   const data = useData();
   const theme = useStore((s) => s.theme);
   const blocMode = useStore((s) => s.blocMode);
@@ -98,6 +101,16 @@ export default function Settings() {
   const configured = useAuthStore((s) => s.configured);
   const authProvider = useAuthStore((s) => s.authProvider);
   const updatePassword = useAuthStore((s) => s.updatePassword);
+  const isAdmin = useAuthStore((s) => s.isAdmin);
+  const centreId = useAuthStore((s) => s.centreId);
+  const setCentre = useAuthStore((s) => s.setCentre);
+
+  // Liste des centres (pour le rattachement de l'utilisateur courant).
+  const [centres, setCentres] = useState([]);
+  useEffect(() => {
+    if (isDemo) return;
+    listCentres().then(setCentres);
+  }, [isDemo]);
 
   // Modale « changer le mot de passe » (comptes email uniquement).
   const [pwModal, setPwModal] = useState(false);
@@ -205,6 +218,37 @@ export default function Settings() {
                   <Pencil size={16} />
                 </button>
               </div>
+
+              {/* Rattachement à un centre (sert aux statistiques de l'admin). */}
+              {!isDemo && (
+                <div className="mt-3">
+                  <Select
+                    label="Centre de rattachement"
+                    value={centreId || ''}
+                    onChange={(e) => setCentre(e.target.value || null)}
+                    options={[
+                      { value: '', label: 'Non rattaché' },
+                      ...centres.map((c) => ({ value: c.id, label: c.name })),
+                    ]}
+                  />
+                </div>
+              )}
+
+              {/* Accès à l'espace d'administration (mobile : pas d'entrée latérale). */}
+              {isAdmin && (
+                <button
+                  type="button"
+                  onClick={() => navigate('/admin')}
+                  className="mt-3 w-full flex items-center gap-3 p-3 rounded-lg bg-primary/10 text-primary text-left"
+                >
+                  <SlidersHorizontal size={18} className="shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[14px] font-semibold">Administration</div>
+                    <div className="text-[12px] opacity-80">Internes, centres, catalogue</div>
+                  </div>
+                  <ChevronRight size={16} className="shrink-0" />
+                </button>
+              )}
 
               {isDemo ? (
                 <Card padding="p-0">
@@ -519,20 +563,30 @@ export default function Settings() {
                   icon={<Scissors size={18} className="text-primary" />}
                   title="Gestes"
                   count={data.procedureTypes.length}
-                  onAdd={() => setModal({ type: 'procedure', item: null })}
+                  readOnly
+                  note="Catalogue partagé, géré par l'administrateur. Un geste manquant peut être ajouté à la volée lors d'une nouvelle intervention."
+                  footer={
+                    isAdmin ? (
+                      <button
+                        type="button"
+                        onClick={() => navigate('/admin/catalogue')}
+                        className="flex items-center gap-1.5 text-[13px] text-primary font-semibold"
+                      >
+                        <ListChecks size={15} /> Gérer le catalogue
+                      </button>
+                    ) : null
+                  }
                   items={data.procedureTypes.map((p) => {
                     const cfg = getSpecialty(p.serviceType);
                     const stepsCount = p.internSteps?.length || 0;
                     return {
                       id: p.id,
                       primary: procLabel(p),
-                      secondary: `${cfg.label} · ${scopeLabel(p.scope)}${stepsCount ? ` · ${stepsCount} sous-gestes` : ''}`,
+                      secondary: `${cfg.label} · ${scopeLabel(p.scope)}${stepsCount ? ` · ${stepsCount} sous-gestes` : ''}${p.local ? ' · perso' : ''}`,
                       color: cfg.color,
                       raw: p,
                     };
                   })}
-                  onEdit={(it) => setModal({ type: 'procedure', item: it.raw })}
-                  onDelete={(it) => tryDelete('procedure', it.raw)}
                 />
               </div>
             </Accordion>
@@ -839,7 +893,7 @@ function GoogleMark() {
   );
 }
 
-function ManagerCard({ icon, title, count, items, onAdd, onEdit, onDelete }) {
+function ManagerCard({ icon, title, count, items, onAdd, onEdit, onDelete, readOnly = false, note, footer }) {
   const [open, setOpen] = useState(false);
   return (
     <Card padding="p-0">
@@ -852,13 +906,15 @@ function ManagerCard({ icon, title, count, items, onAdd, onEdit, onDelete }) {
           </div>
         </button>
         <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={onAdd}
-            className="flex items-center gap-1 text-xs text-primary font-semibold"
-          >
-            <Plus size={14} strokeWidth={2.6} /> Ajouter
-          </button>
+          {!readOnly && (
+            <button
+              type="button"
+              onClick={onAdd}
+              className="flex items-center gap-1 text-xs text-primary font-semibold"
+            >
+              <Plus size={14} strokeWidth={2.6} /> Ajouter
+            </button>
+          )}
           <ChevronRight
             size={16}
             className="text-ink-3 transition-transform"
@@ -870,6 +926,7 @@ function ManagerCard({ icon, title, count, items, onAdd, onEdit, onDelete }) {
 
       {open && (
         <div className="border-t border-line">
+          {note && <div className="px-4 py-2.5 text-[12px] text-ink-3 bg-surface-2">{note}</div>}
           {items.length === 0 && <div className="px-4 py-3 text-[13px] text-ink-3">Liste vide.</div>}
           {items.map((it, idx) => (
             <div
@@ -884,16 +941,19 @@ function ManagerCard({ icon, title, count, items, onAdd, onEdit, onDelete }) {
                   {it.secondary && <div className="text-[11px] text-ink-3 truncate">{it.secondary}</div>}
                 </div>
               </div>
-              <div className="flex gap-1 shrink-0">
-                <button type="button" onClick={() => onEdit(it)} className="p-1.5 text-ink-3" aria-label="Modifier">
-                  <Pencil size={14} />
-                </button>
-                <button type="button" onClick={() => onDelete(it)} className="p-1.5 text-cardiac" aria-label="Supprimer">
-                  <Trash2 size={14} />
-                </button>
-              </div>
+              {!readOnly && (
+                <div className="flex gap-1 shrink-0">
+                  <button type="button" onClick={() => onEdit(it)} className="p-1.5 text-ink-3" aria-label="Modifier">
+                    <Pencil size={14} />
+                  </button>
+                  <button type="button" onClick={() => onDelete(it)} className="p-1.5 text-cardiac" aria-label="Supprimer">
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              )}
             </div>
           ))}
+          {footer && <div className="px-4 py-2.5 border-t border-line">{footer}</div>}
         </div>
       )}
     </Card>

@@ -1,5 +1,5 @@
 import { NavLink, useNavigate } from 'react-router-dom';
-import { Home, BarChart3, Users, Settings, Plus, Calendar } from 'lucide-react';
+import { Home, BarChart3, Users, Settings, Plus, Calendar, Shield } from 'lucide-react';
 import { useData, useCurrentSemester } from '../../store/hooks';
 import { useStore } from '../../store/useStore';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -29,6 +29,7 @@ export function Sidebar() {
   const currentSemester = useCurrentSemester();
   const syncStatus = useStore(s => s.syncStatus);
   const user = useAuthStore(s => s.user);
+  const isAdmin = useAuthStore(s => s.isAdmin);
 
   const syncDotColor =
     syncStatus === 'idle' ? '#27AE60' :
@@ -62,6 +63,7 @@ export function Sidebar() {
         <SidebarItem to="/statistiques" icon={BarChart3} label="Statistiques" />
         <SidebarItem to="/patients" icon={Users} label="Patients" />
         <SidebarItem to="/parametres" icon={Settings} label="Réglages" />
+        {isAdmin && <SidebarItem to="/admin" icon={Shield} label="Administration" />}
       </nav>
 
       <div className="px-3 py-3 border-t border-line">

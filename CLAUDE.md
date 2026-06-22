@@ -42,7 +42,35 @@ existante.
   config et l'app ne démarre pas).
 - Exécuter `supabase/migrations/0001_app_data.sql` dans le projet Supabase
   (table `app_data` + RLS par `user_id`).
+- Exécuter aussi `0002`, `0003` (entitlements/paywall) puis
+  `0004_roles_centres_catalog.sql` (rôles admin/interne, centres, catalogue de
+  gestes partagé).
 - Activer le provider Email dans Supabase Auth (mode OTP / code à 6 chiffres).
+
+## Rôles & supervision (migration 0004)
+- Deux rôles dans la table `profiles` : `intern` (par défaut) et `admin`
+  (super-admin global). Le rôle est chargé après connexion dans
+  `useAuthStore` (`role`, `isAdmin`, `centreId` via `refreshProfile`).
+- **Catalogue de gestes PARTAGÉ** : la table `procedure_types` est désormais la
+  source unique du catalogue (lue par tous, écrite par les admins). Elle n'est
+  **plus** synchronisée par-utilisateur (`procedureTypes` retiré de
+  `CLOUD_FIELDS`/`SYNC_FIELDS`). Chargement via `src/lib/catalog.js` +
+  `setCatalog`. Un interne peut ajouter un geste **personnel local**
+  (`local: true`, jamais synchronisé) à la volée dans NewIntervention ; le
+  catalogue officiel se gère dans l'espace admin (`/admin/catalogue`).
+- **Centres** : table `centres` ; chaque interne se rattache via
+  `profiles.centre_id` (Réglages + onboarding). Sert aux stats par centre.
+- **Espace admin** : routes `/admin/*` (gardées par `RequireAdmin` ET la RLS),
+  pages dans `src/pages/admin/`, accès données dans `src/lib/adminQueries.js`.
+- **Sécurité** : tout est appliqué côté serveur via RLS + fonctions
+  `SECURITY DEFINER` (`is_admin()`, `admin_list_interns()`). Le gating client
+  n'est qu'une commodité. Un interne ne peut pas se promouvoir (trigger
+  anti-escalade sur `profiles.role`).
+- **Bootstrap** : le 1er admin se pose une fois en SQL
+  (`update public.profiles set role='admin' where email='…'`), ensuite la
+  gestion des rôles se fait dans `/admin/comptes`.
+- **RGPD inchangé** : les admins ne voient que les stats de formation déjà
+  synchronisées ; aucune donnée patient n'est lue (jamais dans `app_data`).
 
 ## Structure src/
 - `src/data/` → constantes + données de seed (premier lancement)
@@ -53,6 +81,8 @@ existante.
 - `src/components/layout/` → AppLayout, TopBar, BottomNav
 - `src/pages/` → écrans (Dashboard, Semestres, SemestreDetail, NewIntervention,
   InterventionDetail, Patients, PatientDetail, Statistics, Settings)
+- `src/pages/admin/` → espace d'administration (AdminDashboard, InternDetail,
+  CatalogManage, UserManage, CentreStats, RequireAdmin)
 
 ## Commandes
 - `npm run dev` — serveur de dev (port 5173)

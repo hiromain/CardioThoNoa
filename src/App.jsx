@@ -13,6 +13,12 @@ import Patients from './pages/Patients';
 import PatientDetail from './pages/PatientDetail';
 import Settings from './pages/Settings';
 import SemesterReport from './pages/SemesterReport';
+import { RequireAdmin } from './pages/admin/RequireAdmin';
+import AdminDashboard from './pages/admin/AdminDashboard';
+import InternDetail from './pages/admin/InternDetail';
+import CatalogManage from './pages/admin/CatalogManage';
+import UserManage from './pages/admin/UserManage';
+import CentreStats from './pages/admin/CentreStats';
 
 // Splash affiché le temps de résoudre la session au démarrage.
 function AuthSplash() {
@@ -46,6 +52,12 @@ export default function App() {
         <Route path="/patients" element={<Patients />} />
         <Route path="/patients/:id" element={<PatientDetail />} />
         <Route path="/parametres" element={<Settings />} />
+        {/* Espace d'administration — gardé par RequireAdmin (et la RLS côté serveur). */}
+        <Route path="/admin" element={<RequireAdmin><AdminDashboard /></RequireAdmin>} />
+        <Route path="/admin/internes/:userId" element={<RequireAdmin><InternDetail /></RequireAdmin>} />
+        <Route path="/admin/catalogue" element={<RequireAdmin><CatalogManage /></RequireAdmin>} />
+        <Route path="/admin/comptes" element={<RequireAdmin><UserManage /></RequireAdmin>} />
+        <Route path="/admin/centres" element={<RequireAdmin><CentreStats /></RequireAdmin>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>
