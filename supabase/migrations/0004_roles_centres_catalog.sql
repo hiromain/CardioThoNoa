@@ -64,7 +64,12 @@ security definer
 set search_path = public
 as $$
 begin
-  if new.role is distinct from old.role and not public.is_admin() then
+  -- auth.uid() est null quand exécuté en superuser (SQL Editor, service role,
+  -- bootstrap du premier admin) → on laisse passer. La protection ne s'applique
+  -- qu'aux sessions utilisateur authentifiées.
+  if new.role is distinct from old.role
+     and auth.uid() is not null
+     and not public.is_admin() then
     raise exception 'Seul un administrateur peut modifier le rôle.';
   end if;
   return new;

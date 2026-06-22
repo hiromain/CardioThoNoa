@@ -5,6 +5,12 @@
 //   invoice.payment_succeeded     → renouvellement d'abonnement → maj period_end
 //   customer.subscription.deleted → résiliation → is_paid = false
 //
+// Le droit d'accès (is_paid/plan/stripe_*) vit dans la table `profiles` (les
+// colonnes y ont fusionné — migration 0005, l'ancienne table `entitlements`
+// n'existe plus). Cette fonction utilise le service role : elle contourne la RLS
+// et le trigger `profiles_guard_protected` (auth.uid() null) → seul écrivain
+// légitime des colonnes de paiement.
+//
 // Secrets requis : STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET
 // Injectés automatiquement : SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY.
 import Stripe from 'https://esm.sh/stripe@14?target=deno';
@@ -80,16 +86,21 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     periodEnd = new Date(sub.current_period_end * 1000).toISOString();
   }
 
-  const { error } = await admin.from('entitlements').upsert({
-    user_id:                userId,
-    is_paid:                true,
-    plan,
-    purchased_at:           new Date().toISOString(),
-    stripe_customer_id:     customerId,
-    stripe_session_id:      session.id,
-    stripe_subscription_id: subscriptionId,
-    current_period_end:     periodEnd,
-  });
+  // Upsert sur profiles : sur conflit (profil déjà créé à la connexion) seules
+  // les colonnes de paiement sont mises à jour ; rôle/centre/nom sont préservés.
+  const { error } = await admin.from('profiles').upsert(
+    {
+      user_id:                userId,
+      is_paid:                true,
+      plan,
+      purchased_at:           new Date().toISOString(),
+      stripe_customer_id:     customerId,
+      stripe_session_id:      session.id,
+      stripe_subscription_id: subscriptionId,
+      current_period_end:     periodEnd,
+    },
+    { onConflict: 'user_id' }
+  );
   if (error) { console.error('Upsert checkout', error); throw error; }
 }
 
@@ -106,14 +117,14 @@ async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice) {
   const periodEnd = new Date(lineItem.period.end * 1000).toISOString();
 
   const { data: row } = await admin
-    .from('entitlements')
+    .from('profiles')
     .select('user_id')
     .eq('stripe_customer_id', customerId)
     .maybeSingle();
   if (!row) return;
 
   const { error } = await admin
-    .from('entitlements')
+    .from('profiles')
     .update({ is_paid: true, current_period_end: periodEnd })
     .eq('user_id', row.user_id);
   if (error) { console.error('Update renewal', error); throw error; }
@@ -128,14 +139,14 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
   if (!customerId) return;
 
   const { data: row } = await admin
-    .from('entitlements')
+    .from('profiles')
     .select('user_id')
     .eq('stripe_customer_id', customerId)
     .maybeSingle();
   if (!row) return;
 
   const { error } = await admin
-    .from('entitlements')
+    .from('profiles')
     .update({ is_paid: false, stripe_subscription_id: null, current_period_end: null })
     .eq('user_id', row.user_id);
   if (error) { console.error('Update cancellation', error); throw error; }

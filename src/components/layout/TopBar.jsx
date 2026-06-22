@@ -4,7 +4,7 @@ export function TopBar({ title, subtitle, onBack, action }) {
   return (
     <div className="glass sticky top-0 z-50 flex items-center gap-2.5 px-4 py-2.5 border-b border-line min-h-[52px] pt-safe">
       {onBack && (
-        <span className="lg:hidden flex items-center">
+        <span className="flex items-center">
           <button
             type="button"
             onClick={onBack}

@@ -109,10 +109,10 @@ export async function loadSharedCatalog() {
 async function handleSignIn(userId) {
   const auth = useAuthStore.getState();
 
-  // Charger le droit d'accès ET le profil (rôle/centre) AVANT de décider quoi
-  // charger. Le catalogue partagé est chargé en parallèle (lecture pour tous).
+  // Charger le profil complet (rôle/centre + droit d'accès is_paid) AVANT de
+  // décider quoi charger. refreshProfile retourne isPaid. Le catalogue partagé
+  // est chargé en parallèle (lecture pour tous).
   const [isPaid] = await Promise.all([
-    auth.refreshEntitlement(),
     auth.refreshProfile(),
     loadSharedCatalog(),
   ]);

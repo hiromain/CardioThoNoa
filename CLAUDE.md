@@ -42,9 +42,15 @@ existante.
   config et l'app ne démarre pas).
 - Exécuter `supabase/migrations/0001_app_data.sql` dans le projet Supabase
   (table `app_data` + RLS par `user_id`).
-- Exécuter aussi `0002`, `0003` (entitlements/paywall) puis
+- Exécuter aussi `0002`, `0003` (entitlements/paywall), puis
   `0004_roles_centres_catalog.sql` (rôles admin/interne, centres, catalogue de
-  gestes partagé).
+  gestes partagé) et enfin `0005_merge_entitlements_into_profiles.sql`.
+- **Migration 0005** : la table `entitlements` a fusionné dans `profiles`
+  (un utilisateur = une seule ligne). Les colonnes de paiement
+  (`is_paid`, `plan`, `current_period_end`, `stripe_*`) sont protégées par le
+  trigger `profiles_guard_protected` (seul le service role du webhook écrit).
+  **Après 0005, redéployer la Edge Function `stripe-webhook`** (elle écrit
+  désormais dans `profiles`) : `supabase functions deploy stripe-webhook`.
 - Activer le provider Email dans Supabase Auth (mode OTP / code à 6 chiffres).
 
 ## Rôles & supervision (migration 0004)

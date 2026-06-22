@@ -49,37 +49,65 @@ export const useAuthStore = create((set, get) => ({
   centreId: null,
   profileLoaded: false,
 
-  // Recharge le profil (rôle + centre) depuis Supabase. Crée la ligne
-  // `profiles` au premier passage (rôle 'intern' par défaut). Démo/dev → intern.
+  // Recharge le profil COMPLET depuis Supabase : rôle, centre ET droit d'accès
+  // (is_paid / plan / fin de période). Depuis la migration 0005, tout est dans
+  // la seule table `profiles` (l'ancienne table `entitlements` a fusionné ici).
+  // Crée la ligne au premier passage (rôle 'intern', non payé). Démo/dev → libre.
+  // Retourne `isPaid` (utilisé par le moteur de sync pour décider quoi charger).
   refreshProfile: async () => {
     const user = get().user;
     if (!isSupabaseConfigured || !user || isLocalUser(user)) {
-      set({ role: 'intern', isAdmin: false, centreId: null, profileLoaded: true });
-      return 'intern';
+      set({
+        role: 'intern', isAdmin: false, centreId: null,
+        isPaid: false, plan: null, planEndDate: null,
+        profileLoaded: true, entitlementLoaded: true,
+      });
+      return false;
     }
-    const { data } = await supabase
+    // On tente d'inclure les colonnes de paiement (présentes après la migration
+    // 0005). Si elles n'existent pas encore (avant 0005), la requête échoue et on
+    // retombe sur rôle/centre seuls — l'accès payant reste alors à false (sens
+    // sûr : verrouillé, jamais débloqué par erreur).
+    let hasPaymentCols = true;
+    let { data, error } = await supabase
       .from('profiles')
-      .select('role, centre_id')
+      .select('role, centre_id, is_paid, plan, current_period_end')
       .eq('user_id', user.id)
       .maybeSingle();
+    if (error) {
+      hasPaymentCols = false;
+      ({ data } = await supabase
+        .from('profiles')
+        .select('role, centre_id')
+        .eq('user_id', user.id)
+        .maybeSingle());
+    }
     if (!data) {
-      // Première connexion : on crée la ligne profil (rôle interne par défaut).
+      // Première connexion : on crée la ligne profil (interne, non payé). Le rôle
+      // et les colonnes de paiement sont forcés côté serveur par le trigger
+      // `profiles_guard_protected` — impossible de s'auto-attribuer admin/payant.
       const storeProfile = useStore.getState().profile;
       const displayName = storeProfile
         ? [storeProfile.prenom, storeProfile.nom].filter(Boolean).join(' ').trim() || null
         : null;
-      const { data: created } = await supabase
+      await supabase
         .from('profiles')
-        .insert({ user_id: user.id, role: 'intern', display_name: displayName, email: user.email })
-        .select('role, centre_id')
-        .maybeSingle();
-      const role = created?.role ?? 'intern';
-      set({ role, isAdmin: role === 'admin', centreId: created?.centre_id ?? null, profileLoaded: true });
-      return role;
+        .insert({ user_id: user.id, role: 'intern', display_name: displayName, email: user.email });
+      data = { role: 'intern', centre_id: null, is_paid: false, plan: null, current_period_end: null };
     }
     const role = data.role ?? 'intern';
-    set({ role, isAdmin: role === 'admin', centreId: data.centre_id ?? null, profileLoaded: true });
-    return role;
+    const isPaid = hasPaymentCols ? !!data.is_paid : false;
+    set({
+      role,
+      isAdmin: role === 'admin',
+      centreId: data.centre_id ?? null,
+      isPaid,
+      plan: hasPaymentCols ? (data.plan ?? null) : null,
+      planEndDate: hasPaymentCols ? (data.current_period_end ?? null) : null,
+      profileLoaded: true,
+      entitlementLoaded: true,
+    });
+    return isPaid;
   },
 
   // Met à jour le centre de rattachement de l'utilisateur courant (Réglages /
@@ -107,28 +135,8 @@ export const useAuthStore = create((set, get) => ({
   openUpgrade: () => set({ upgradeOpen: true }),
   closeUpgrade: () => set({ upgradeOpen: false }),
 
-  // Recharge le droit d'accès depuis Supabase (table `entitlements`). Appelée
-  // après connexion et au retour d'un achat. Sans ligne → non payé.
-  refreshEntitlement: async () => {
-    const user = get().user;
-    if (!isSupabaseConfigured || !user || isLocalUser(user)) {
-      set({ isPaid: false, entitlementLoaded: true });
-      return false;
-    }
-    const { data, error } = await supabase
-      .from('entitlements')
-      .select('is_paid, plan, current_period_end')
-      .eq('user_id', user.id)
-      .maybeSingle();
-    const isPaid = !error && !!data?.is_paid;
-    set({
-      isPaid,
-      plan: data?.plan ?? null,
-      planEndDate: data?.current_period_end ?? null,
-      entitlementLoaded: true,
-    });
-    return isPaid;
-  },
+  // NB : le droit d'accès (is_paid/plan) est désormais chargé par refreshProfile
+  // — il n'y a plus de table `entitlements` ni de refreshEntitlement séparé.
 
   // ── Démarrage ───────────────────────────────────────────────────────────────
   init: () => {
