@@ -6,7 +6,8 @@ import { PROCEDURE_TYPES } from '../data/procedureTypes';
 import { STORAGE_KEY, APP_USER } from '../data/constants';
 import { semesterStatus } from '../lib/dates';
 import { uid } from '../lib/id';
-import { useAuthStore } from './useAuthStore';
+import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
+import { useAuthStore, isLocalUser } from './useAuthStore';
 
 // Paywall (achat unique) : enveloppe une action d'écriture utilisateur. Si le
 // compte n'a pas payé (démo, gratuit), l'action ne mute RIEN et ouvre la modale
@@ -85,8 +86,18 @@ export const useStore = create(
       setBlocMode: (on) =>
         set((s) => ({ blocMode: on, theme: on ? 'dark' : s.theme })),
       setCurrentSemester: (id) => set({ currentSemesterId: id }),
-      updateProfile: guardWrite((patch) =>
-        set((s) => ({ profile: { ...s.profile, ...patch } }))),
+      updateProfile: guardWrite((patch) => {
+        set((s) => ({ profile: { ...s.profile, ...patch } }));
+        // Synchronise display_name dans Supabase si le prénom ou le nom change.
+        if (patch.prenom != null || patch.nom != null) {
+          const profile = { ...useStore.getState().profile, ...patch };
+          const displayName = [profile.prenom, profile.nom].filter(Boolean).join(' ').trim() || null;
+          const auth = useAuthStore.getState();
+          if (isSupabaseConfigured && auth.user && !isLocalUser(auth.user)) {
+            supabase.from('profiles').update({ display_name: displayName }).eq('user_id', auth.user.id);
+          }
+        }
+      }),
 
       // ── Services ──────────────────────────────────────────────────────────
       addService: guardWrite((data) => {
