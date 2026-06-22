@@ -172,167 +172,175 @@ export default function NewIntervention() {
         action={service ? <SpecBadge type={service.type} /> : null}
       />
 
-      <div className="flex-1 px-4 py-5">
-        <FormSection title="Contexte">
-          <Input
-            label="Date de l'intervention"
-            type="date"
-            required
-            value={form.date}
-            onChange={(e) => set('date', e.target.value)}
-          />
-          <Select
-            label="Chirurgien"
-            required
-            placeholder={surgeons.length ? 'Choisir un chirurgien' : 'Aucun chirurgien dans ce service'}
-            value={form.surgeonId}
-            onChange={(e) => set('surgeonId', e.target.value)}
-            options={surgeons.map((s) => ({ value: s.id, label: surgeonName(s) }))}
-          />
-        </FormSection>
+      <div className="flex-1 px-4 py-5 lg:px-8 lg:py-7">
+        <div className="lg:grid lg:grid-cols-2 lg:gap-8 lg:items-start">
+          {/* Colonne gauche : Contexte, Patient, Position, Semestre */}
+          <div>
+            <FormSection title="Contexte">
+              <Input
+                label="Date de l'intervention"
+                type="date"
+                required
+                value={form.date}
+                onChange={(e) => set('date', e.target.value)}
+              />
+              <Select
+                label="Chirurgien"
+                required
+                placeholder={surgeons.length ? 'Choisir un chirurgien' : 'Aucun chirurgien dans ce service'}
+                value={form.surgeonId}
+                onChange={(e) => set('surgeonId', e.target.value)}
+                options={surgeons.map((s) => ({ value: s.id, label: surgeonName(s) }))}
+              />
+            </FormSection>
 
-        <FormSection title="Patient">
-          <PatientPicker
-            patients={data.patients}
-            value={form.patientId}
-            onSelect={(pid) => set('patientId', pid)}
-            onCreate={(p) => addPatient(p)}
-          />
-        </FormSection>
+            <FormSection title="Patient">
+              <PatientPicker
+                patients={data.patients}
+                value={form.patientId}
+                onSelect={(pid) => set('patientId', pid)}
+                onCreate={(p) => addPatient(p)}
+              />
+            </FormSection>
 
-        <FormSection
-          title="Gestes sur le patient"
-          icon={<Stethoscope size={13} className="text-ink-3" />}
-          subtitle="Ce qui a été fait au patient durant l'intervention, quel qu'en soit l'auteur."
-        >
-          <ProcedureSelector
-            procedures={patientProcs}
-            selectedIds={form.patientProcedures}
-            onChange={changePatientProcedures}
-            variant="neutral"
-            onAddProcedure={service ? addProcedureOfScope('patient') : undefined}
-          />
-        </FormSection>
-
-        <div
-          className="mb-6 rounded-md border-[1.5px] p-3.5"
-          style={{ borderColor: cfg.color, background: cfg.muted }}
-        >
-          <div className="flex items-center justify-between mb-1">
-            <div className="flex items-center gap-1.5">
-              <GraduationCap size={15} style={{ color: cfg.color }} />
-              <div className="text-[11px] font-extrabold uppercase tracking-wider" style={{ color: cfg.color }}>
-                Gestes réalisés par l'interne
+            <FormSection title="Position de l'interne">
+              <div className="flex flex-col gap-2">
+                {POSITIONS.map((p) => {
+                  const st = getPositionStyle(p);
+                  const active = form.position === p;
+                  return (
+                    <button
+                      key={p}
+                      type="button"
+                      onClick={() => set('position', p)}
+                      className="flex items-center gap-2.5 px-3.5 py-3 rounded-md border-[1.5px] transition-colors text-left"
+                      style={{
+                        borderColor: active ? st.color : 'var(--border)',
+                        background: active ? st.bg : 'var(--surface)',
+                      }}
+                    >
+                      <span
+                        className="w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0"
+                        style={{ borderColor: active ? st.color : 'var(--border)', background: active ? st.color : 'transparent' }}
+                      >
+                        {active && <Check size={10} className="text-white" strokeWidth={3} />}
+                      </span>
+                      <span
+                        className="text-sm font-medium capitalize"
+                        style={{ color: active ? st.color : 'var(--text-1)' }}
+                      >
+                        {p}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
-            </div>
-            {form.internProcedures.length > 0 && (
-              <span
-                className="text-[11px] font-bold px-2 py-0.5 rounded-pill"
-                style={{ color: cfg.color, background: 'var(--surface)' }}
-              >
-                {form.internProcedures.length}
-              </span>
-            )}
+            </FormSection>
+
+            <FormSection title="Semestre">
+              {semesters.length > 1 ? (
+                <Select
+                  required
+                  value={form.semesterId}
+                  onChange={(e) => changeSemester(e.target.value)}
+                  options={semesters.map((s) => {
+                    const svc = serviceForSemester(data, s.id);
+                    return { value: s.id, label: `${s.label} — ${getSpecialty(svc?.type).label}` };
+                  })}
+                />
+              ) : (
+                <div className="text-[13px] text-ink-2">
+                  <span className="font-semibold text-ink-1">{byId(data.semesters, form.semesterId)?.label}</span>
+                </div>
+              )}
+            </FormSection>
           </div>
-          <div className="text-[12px] mb-2.5" style={{ color: cfg.color, opacity: 0.8 }}>
-            Ce que vous avez personnellement réalisé — compte pour votre carnet de formation.
-          </div>
-          {internProcsToShow.length === 0 && !hasExtraSteps && (
-            <div className="text-[12px] mb-2.5" style={{ color: cfg.color, opacity: 0.7 }}>
-              {hasSuggestions
-                ? 'Aucun sous-geste sélectionné.'
-                : 'Sélectionnez des gestes sur le patient pour afficher la checklist, ou affichez tous les gestes ci-dessous.'}
-            </div>
-          )}
-          <ProcedureSelector
-            procedures={internProcsToShow}
-            selectedIds={form.internProcedures}
-            onChange={(ids) => set('internProcedures', ids)}
-            color={cfg.color}
-            light="var(--surface)"
-            variant="accent"
-            onAddProcedure={
-              service
-                ? (rawName) => {
-                    const newId = addProcedureOfScope('intern')(rawName);
-                    if (newId) setShowAllIntern(true);
-                    return newId;
-                  }
-                : undefined
-            }
-          />
-          {(hasExtraSteps || (!hasSuggestions && internProcs.length > 0)) && (
-            <button
-              type="button"
-              onClick={() => setShowAllIntern((v) => !v)}
-              className="mt-2.5 text-[12px] font-bold underline underline-offset-2"
-              style={{ color: cfg.color }}
+
+          {/* Colonne droite : Gestes patient, Gestes interne, Notes */}
+          <div>
+            <FormSection
+              title="Gestes sur le patient"
+              icon={<Stethoscope size={13} className="text-ink-3" />}
+              subtitle="Ce qui a été fait au patient durant l'intervention, quel qu'en soit l'auteur."
             >
-              {showAllIntern ? '− Réduire' : '+ Afficher tous les gestes'}
-            </button>
-          )}
-        </div>
+              <ProcedureSelector
+                procedures={patientProcs}
+                selectedIds={form.patientProcedures}
+                onChange={changePatientProcedures}
+                variant="neutral"
+                onAddProcedure={service ? addProcedureOfScope('patient') : undefined}
+              />
+            </FormSection>
 
-        <FormSection title="Position de l'interne">
-          <div className="flex flex-col gap-2">
-            {POSITIONS.map((p) => {
-              const st = getPositionStyle(p);
-              const active = form.position === p;
-              return (
+            <div
+              className="mb-6 rounded-md border-[1.5px] p-3.5"
+              style={{ borderColor: cfg.color, background: cfg.muted }}
+            >
+              <div className="flex items-center justify-between mb-1">
+                <div className="flex items-center gap-1.5">
+                  <GraduationCap size={15} style={{ color: cfg.color }} />
+                  <div className="text-[11px] font-extrabold uppercase tracking-wider" style={{ color: cfg.color }}>
+                    Gestes réalisés par l'interne
+                  </div>
+                </div>
+                {form.internProcedures.length > 0 && (
+                  <span
+                    className="text-[11px] font-bold px-2 py-0.5 rounded-pill"
+                    style={{ color: cfg.color, background: 'var(--surface)' }}
+                  >
+                    {form.internProcedures.length}
+                  </span>
+                )}
+              </div>
+              <div className="text-[12px] mb-2.5" style={{ color: cfg.color, opacity: 0.8 }}>
+                Ce que vous avez personnellement réalisé — compte pour votre carnet de formation.
+              </div>
+              {internProcsToShow.length === 0 && !hasExtraSteps && (
+                <div className="text-[12px] mb-2.5" style={{ color: cfg.color, opacity: 0.7 }}>
+                  {hasSuggestions
+                    ? 'Aucun sous-geste sélectionné.'
+                    : 'Sélectionnez des gestes sur le patient pour afficher la checklist, ou affichez tous les gestes ci-dessous.'}
+                </div>
+              )}
+              <ProcedureSelector
+                procedures={internProcsToShow}
+                selectedIds={form.internProcedures}
+                onChange={(ids) => set('internProcedures', ids)}
+                color={cfg.color}
+                light="var(--surface)"
+                variant="accent"
+                onAddProcedure={
+                  service
+                    ? (rawName) => {
+                        const newId = addProcedureOfScope('intern')(rawName);
+                        if (newId) setShowAllIntern(true);
+                        return newId;
+                      }
+                    : undefined
+                }
+              />
+              {(hasExtraSteps || (!hasSuggestions && internProcs.length > 0)) && (
                 <button
-                  key={p}
                   type="button"
-                  onClick={() => set('position', p)}
-                  className="flex items-center gap-2.5 px-3.5 py-3 rounded-md border-[1.5px] transition-colors text-left"
-                  style={{
-                    borderColor: active ? st.color : 'var(--border)',
-                    background: active ? st.bg : 'var(--surface)',
-                  }}
+                  onClick={() => setShowAllIntern((v) => !v)}
+                  className="mt-2.5 text-[12px] font-bold underline underline-offset-2"
+                  style={{ color: cfg.color }}
                 >
-                  <span
-                    className="w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0"
-                    style={{ borderColor: active ? st.color : 'var(--border)', background: active ? st.color : 'transparent' }}
-                  >
-                    {active && <Check size={10} className="text-white" strokeWidth={3} />}
-                  </span>
-                  <span
-                    className="text-sm font-medium capitalize"
-                    style={{ color: active ? st.color : 'var(--text-1)' }}
-                  >
-                    {p}
-                  </span>
+                  {showAllIntern ? '− Réduire' : '+ Afficher tous les gestes'}
                 </button>
-              );
-            })}
-          </div>
-        </FormSection>
-
-        <FormSection title="Notes">
-          <TextArea
-            value={form.notes}
-            onChange={(e) => set('notes', e.target.value)}
-            placeholder="Remarques, contexte clinique…"
-            rows={3}
-          />
-        </FormSection>
-
-        <FormSection title="Semestre">
-          {semesters.length > 1 ? (
-            <Select
-              required
-              value={form.semesterId}
-              onChange={(e) => changeSemester(e.target.value)}
-              options={semesters.map((s) => {
-                const svc = serviceForSemester(data, s.id);
-                return { value: s.id, label: `${s.label} — ${getSpecialty(svc?.type).label}` };
-              })}
-            />
-          ) : (
-            <div className="text-[13px] text-ink-2">
-              <span className="font-semibold text-ink-1">{byId(data.semesters, form.semesterId)?.label}</span>
+              )}
             </div>
-          )}
-        </FormSection>
+
+            <FormSection title="Notes">
+              <TextArea
+                value={form.notes}
+                onChange={(e) => set('notes', e.target.value)}
+                placeholder="Remarques, contexte clinique…"
+                rows={3}
+              />
+            </FormSection>
+          </div>
+        </div>
       </div>
 
       <div className="sticky bottom-0 glass border-t border-line px-4 py-3 pb-safe">

@@ -180,3 +180,69 @@ export function topSurgeons(state, interventions, n = 8) {
   });
   return rows.sort((a, b) => b.count - a.count).slice(0, n);
 }
+
+// 8. Courbe cumulative d'interventions et de gestes interne par mois.
+export function cumulativeInterventions(interventions) {
+  const sorted = [...interventions].sort((a, b) => a.date.localeCompare(b.date));
+  const byMonth = new Map();
+  sorted.forEach((i) => {
+    const k = monthKey(i.date);
+    if (!byMonth.has(k)) byMonth.set(k, { key: k, label: formatMonthYear(i.date), count: 0, gestes: 0 });
+    const m = byMonth.get(k);
+    m.count++;
+    m.gestes += (i.internProcedures || []).length;
+  });
+  let cumCount = 0;
+  let cumGestes = 0;
+  return [...byMonth.values()]
+    .sort((a, b) => a.key.localeCompare(b.key))
+    .map((m) => {
+      cumCount += m.count;
+      cumGestes += m.gestes;
+      return { ...m, cumCount, cumGestes };
+    });
+}
+
+// 9. Répartition par chirurgien ventilée par position (stacked bar desktop).
+export function surgeonPositionBreakdown(state, interventions, n = 8) {
+  const map = new Map();
+  interventions.forEach((i) => {
+    if (!i.surgeonId) return;
+    if (!map.has(i.surgeonId)) {
+      const sg = byId(state.surgeons, i.surgeonId);
+      map.set(i.surgeonId, {
+        id: i.surgeonId,
+        label: surgeonName(sg),
+        'opérateur principal': 0,
+        '1er assistant': 0,
+        '2ème assistant': 0,
+        total: 0,
+      });
+    }
+    const row = map.get(i.surgeonId);
+    if (i.position && row[i.position] !== undefined) row[i.position]++;
+    row.total++;
+  });
+  return [...map.values()].sort((a, b) => b.total - a.total).slice(0, n);
+}
+
+// 10. Profil radar : % par position + % par spécialité (desktop).
+export function radarProfile(state, interventions) {
+  const total = interventions.length;
+  if (!total) return [];
+  const pos = { 'opérateur principal': 0, '1er assistant': 0, '2ème assistant': 0 };
+  const spec = { cardiaque: 0, thoracique: 0, congenitale: 0 };
+  interventions.forEach((i) => {
+    if (i.position && pos[i.position] !== undefined) pos[i.position]++;
+    const svc = serviceForSemester(state, i.semesterId);
+    if (svc && spec[svc.type] !== undefined) spec[svc.type]++;
+  });
+  return [
+    { subject: 'Opérateur', value: Math.round((pos['opérateur principal'] / total) * 100) },
+    { subject: '1er assist.', value: Math.round((pos['1er assistant'] / total) * 100) },
+    { subject: '2e assist.', value: Math.round((pos['2ème assistant'] / total) * 100) },
+    { subject: 'Cardiaque', value: Math.round((spec.cardiaque / total) * 100) },
+    { subject: 'Thoracique', value: Math.round((spec.thoracique / total) * 100) },
+    { subject: 'Congénital', value: Math.round((spec.congenitale / total) * 100) },
+  ];
+}
