@@ -48,6 +48,7 @@ import {
   getSpecialty,
   SCOPES,
 } from '../data/constants';
+import { SEED_SERVICE_IDS, SEED_SURGEON_IDS, SEED_SEMESTER_IDS } from '../data/seed';
 import {
   serviceForSemester,
   specialtyForSemester,
@@ -90,6 +91,16 @@ export default function Settings() {
   const syncStatus = useStore((s) => s.syncStatus);
   const lastSyncedAt = useStore((s) => s.lastSyncedAt);
   const store = useStore();
+  const clearSeedData = useStore((s) => s.clearSeedData);
+
+  // Détection des données de démonstration (IDs hardcodés dans seed.js).
+  const seedServiceCount  = data.services.filter((s) => SEED_SERVICE_IDS.includes(s.id)).length;
+  const seedSurgeonCount  = data.surgeons.filter((s) => SEED_SURGEON_IDS.includes(s.id)).length;
+  const seedSemesterCount = data.semesters.filter((s) => SEED_SEMESTER_IDS.includes(s.id)).length;
+  const seedInterventionCount = data.interventions.filter(
+    (i) => SEED_SEMESTER_IDS.includes(i.semesterId) || SEED_SURGEON_IDS.includes(i.surgeonId)
+  ).length;
+  const hasSeedData = seedServiceCount > 0 || seedSurgeonCount > 0 || seedSemesterCount > 0;
 
   const user = useAuthStore((s) => s.user);
   const isDemo = useAuthStore((s) => s.isDemo);
@@ -188,6 +199,42 @@ export default function Settings() {
       <TopBar title="Réglages" />
 
       <div className="px-4 py-4 lg:px-8 lg:py-8 max-w-6xl mx-auto">
+        {hasSeedData && (
+          <Card padding="p-0" className="mb-4 border border-amber-400/40 bg-amber-50/40 dark:bg-amber-900/10">
+            <div className="flex items-start gap-3 p-4">
+              <div className="w-9 h-9 rounded-md bg-amber-500/15 flex items-center justify-center shrink-0 mt-0.5">
+                <Eraser size={18} className="text-amber-600" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-[14px] font-semibold text-ink-1 mb-0.5">
+                  Données de démonstration présentes
+                </div>
+                <div className="text-[12px] text-ink-2 leading-relaxed mb-3">
+                  {[
+                    seedServiceCount  > 0 && `${seedServiceCount} service${seedServiceCount > 1 ? 's' : ''}`,
+                    seedSurgeonCount  > 0 && `${seedSurgeonCount} chirurgien${seedSurgeonCount > 1 ? 's' : ''}`,
+                    seedSemesterCount > 0 && `${seedSemesterCount} semestre${seedSemesterCount > 1 ? 's' : ''}`,
+                    seedInterventionCount > 0 && `${seedInterventionCount} intervention${seedInterventionCount > 1 ? 's' : ''}`,
+                  ].filter(Boolean).join(' · ')}
+                </div>
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-1.5 text-[13px] font-semibold px-3.5 py-1.5 rounded-pill border border-amber-400/50 bg-amber-500/10 text-amber-700 hover:bg-amber-500/20 transition-colors active:scale-[0.97]"
+                  onClick={() =>
+                    setConfirm({
+                      title: 'Supprimer les données de démo ?',
+                      message: `Seront supprimés : ${seedServiceCount} service(s), ${seedSurgeonCount} chirurgien(s), ${seedSemesterCount} semestre(s) et ${seedInterventionCount} intervention(s) d'exemple. Tes données réelles ne seront pas touchées.`,
+                      confirmLabel: 'Supprimer',
+                      onConfirm: () => clearSeedData(),
+                    })
+                  }
+                >
+                  <Eraser size={14} /> Supprimer les données de démo
+                </button>
+              </div>
+            </div>
+          </Card>
+        )}
         <div className="lg:grid lg:grid-cols-2 lg:gap-6 flex flex-col gap-3">
           {/* Colonne gauche */}
           <div className="flex flex-col gap-3">

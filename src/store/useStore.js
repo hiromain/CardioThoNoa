@@ -1,7 +1,7 @@
 // CardioThoNoa — Store global (Zustand) avec persistance localStorage.
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { generateSeedData } from '../data/seed';
+import { generateSeedData, SEED_SERVICE_IDS, SEED_SURGEON_IDS, SEED_SEMESTER_IDS } from '../data/seed';
 import { PROCEDURE_TYPES } from '../data/procedureTypes';
 import { STORAGE_KEY, APP_USER } from '../data/constants';
 import { semesterStatus } from '../lib/dates';
@@ -281,6 +281,29 @@ export const useStore = create(
         })),
       resetDemo: () => set({ ...freshData(), profile: demoProfile() }),
       clearAll: () => set(emptyData()),
+      clearSeedData: () => {
+        const s = get();
+        const seedSemSet  = new Set(SEED_SEMESTER_IDS);
+        const seedSgSet   = new Set(SEED_SURGEON_IDS);
+        const seedSvcSet  = new Set(SEED_SERVICE_IDS);
+
+        const removedInterventions = s.interventions.filter(
+          (i) => seedSemSet.has(i.semesterId) || seedSgSet.has(i.surgeonId)
+        );
+        const seedPatientIds = new Set(removedInterventions.map((i) => i.patientId));
+
+        const interventions = s.interventions.filter(
+          (i) => !seedSemSet.has(i.semesterId) && !seedSgSet.has(i.surgeonId)
+        );
+        const keptPatientIds = new Set(interventions.map((i) => i.patientId));
+        const patients  = s.patients.filter(
+          (p) => !seedPatientIds.has(p.id) || keptPatientIds.has(p.id)
+        );
+        const services  = s.services.filter((sv) => !seedSvcSet.has(sv.id));
+        const surgeons  = s.surgeons.filter((sg) => !seedSgSet.has(sg.id));
+        const semesters = s.semesters.filter((sem) => !seedSemSet.has(sem.id));
+        set({ services, surgeons, semesters, interventions, patients, currentSemesterId: pickCurrentSemester(semesters) });
+      },
 
       // ── Synchronisation cloud ─────────────────────────────────────────────
       // Méta de sync (statut, horodatage) poussée par le moteur de sync.

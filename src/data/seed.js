@@ -335,3 +335,9 @@ export function generateSeedData(now = new Date()) {
 function minDate(a, b) {
   return a.getTime() < b.getTime() ? a : b;
 }
+
+// IDs hardcodés utilisés dans les données de démonstration.
+// Permettent de détecter et supprimer les données mock depuis les Réglages.
+export const SEED_SERVICE_IDS  = ['svc-card', 'svc-thor', 'svc-cong'];
+export const SEED_SURGEON_IDS  = ['sg-c1', 'sg-c2', 'sg-c3', 'sg-t1', 'sg-t2', 'sg-t3', 'sg-cong1', 'sg-cong2', 'sg-cong3'];
+export const SEED_SEMESTER_IDS = ['sem-s1', 'sem-s2', 'sem-s3'];
