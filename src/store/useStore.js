@@ -37,8 +37,20 @@ function freshData() {
   return { ...seed, currentSemesterId: pickCurrentSemester(seed.semesters) };
 }
 
-// Profil par défaut (synchronisé dans le cloud, contrairement aux patients).
+// Profil vide pour un vrai compte (les champs sont remplis par l'onboarding /
+// les Réglages). APP_USER est réservé au mode démo (données fictives de Noa).
 function defaultProfile() {
+  return {
+    prenom: '',
+    nom: '',
+    initiales: '',
+    promotion: '',
+    hopital: '',
+  };
+}
+
+// Profil démo : données fictives de Noa Martin (uniquement pour resetDemo).
+function demoProfile() {
   return { ...APP_USER };
 }
 
@@ -267,7 +279,7 @@ export const useStore = create(
                 : pickCurrentSemester(next.semesters),
           };
         })),
-      resetDemo: () => set(freshData()),
+      resetDemo: () => set({ ...freshData(), profile: demoProfile() }),
       clearAll: () => set(emptyData()),
 
       // ── Synchronisation cloud ─────────────────────────────────────────────
