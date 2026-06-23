@@ -89,9 +89,10 @@ export async function triggerManualSync() {
   await pushSnapshot();
 }
 
-// À appeler une fois l'achat confirmé (isPaid passé à true). On efface l'aperçu
-// d'exemple affiché pendant la période gratuite pour repartir d'un compte vide
-// propre, puis on crée la ligne cloud de l'utilisateur.
+// Utilitaire : efface les données mock et crée une ligne cloud vide propre.
+// En pratique, handleSignIn() couvre déjà ce cas automatiquement au rechargement
+// qui suit le retour de Stripe. Cette fonction reste disponible pour un appel
+// manuel si nécessaire (ex. bouton « Repartir de zéro » dans les Réglages).
 export async function completePurchase() {
   useStore.getState().clearAll();
   await pushSnapshot();
@@ -143,7 +144,11 @@ async function handleSignIn(userId) {
       syncStatus: 'idle',
     });
   } else {
-    // Nouveau compte payé sans ligne cloud : on pousse l'état local pour la créer.
+    // Nouveau compte payé sans ligne cloud (première connexion après paiement) :
+    // on efface les données mock chargées en mode gratuit avant de créer la
+    // ligne cloud propre. Sans ce clearAll, les données de démo (services,
+    // semestres, interventions fictifs) seraient poussées dans le cloud.
+    useStore.getState().clearAll();
     await pushSnapshot();
   }
 }
