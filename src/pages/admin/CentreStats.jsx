@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { ChevronRight } from 'lucide-react';
 import { TopBar } from '../../components/layout/TopBar';
 import { Card, EmptyState } from '../../components/ui';
-import { listInterns, listCentres } from '../../lib/adminQueries';
+import { listInterns, listCentres, slugify } from '../../lib/adminQueries';
 
 // Statistiques comparatives par centre. Agrégées à partir de la liste des
 // comptes (nb d'internes, total d'interventions) — léger et suffisant pour la
@@ -28,8 +29,8 @@ export default function CentreStats() {
 
   const stats = useMemo(() => {
     const byCentre = new Map();
-    centres.forEach((c) => byCentre.set(c.id, { id: c.id, name: c.name, interns: 0, interventions: 0 }));
-    byCentre.set('__none', { id: '__none', name: 'Non rattaché', interns: 0, interventions: 0 });
+    centres.forEach((c) => byCentre.set(c.id, { id: c.id, name: c.name, city: c.city, interns: 0, interventions: 0 }));
+    byCentre.set('__none', { id: '__none', name: 'Non rattaché', city: null, interns: 0, interventions: 0 });
     rows.forEach((r) => {
       const key = r.centre_id && byCentre.has(r.centre_id) ? r.centre_id : '__none';
       const bucket = byCentre.get(key);
@@ -52,23 +53,44 @@ export default function CentreStats() {
         ) : stats.length === 0 ? (
           <EmptyState icon="🏥" title="Aucun centre" subtitle="Crée des centres dans « Comptes & centres »." />
         ) : (
-          <Card className="flex flex-col gap-4">
-            {stats.map((s) => (
-              <div key={s.id}>
-                <div className="flex items-baseline justify-between mb-1">
-                  <span className="text-[15px] font-semibold text-ink-1">{s.name}</span>
-                  <span className="text-xs text-ink-3">
-                    {s.interns} interne{s.interns > 1 ? 's' : ''} · {s.interventions} interv.
-                  </span>
+          <Card className="flex flex-col gap-1 p-2">
+            {stats.map((s) => {
+              const canNav = s.id !== '__none';
+              const inner = (
+                <>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[15px] font-semibold text-ink-1">{s.name}</span>
+                      {canNav && <ChevronRight size={14} className="text-ink-3" />}
+                    </div>
+                    <span className="text-xs text-ink-3">
+                      {s.interns} interne{s.interns > 1 ? 's' : ''} · {s.interventions} interv.
+                    </span>
+                  </div>
+                  <div className="h-2.5 rounded-full bg-surface-2 overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-primary transition-all"
+                      style={{ width: `${(s.interventions / maxInterventions) * 100}%` }}
+                    />
+                  </div>
+                </>
+              );
+
+              return canNav ? (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => navigate(`/admin/centres/${slugify(s.city || s.name)}`)}
+                  className="w-full text-left rounded-xl px-3 py-2.5 hover:bg-surface-2 transition-colors"
+                >
+                  {inner}
+                </button>
+              ) : (
+                <div key={s.id} className="px-3 py-2.5">
+                  {inner}
                 </div>
-                <div className="h-2.5 rounded-full bg-surface-2 overflow-hidden">
-                  <div
-                    className="h-full rounded-full bg-primary transition-all"
-                    style={{ width: `${(s.interventions / maxInterventions) * 100}%` }}
-                  />
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </Card>
         )}
       </div>

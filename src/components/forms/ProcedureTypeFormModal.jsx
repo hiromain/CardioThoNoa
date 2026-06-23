@@ -68,12 +68,14 @@ export function ProcedureTypeFormModal({ open, onClose, initial, onSubmit, allPr
           label="Nom complet"
           required
           placeholder="Pontage aorto-coronarien"
+          maxLength={120}
           value={form.name}
           onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
         />
         <Input
           label="Abréviation"
           placeholder="CABG"
+          maxLength={12}
           value={form.abbr}
           onChange={(e) => setForm((f) => ({ ...f, abbr: e.target.value }))}
         />

@@ -84,7 +84,7 @@ export function SemesterFormModal({ open, onClose, initial, onSubmit }) {
         <Button fullWidth onClick={submit} disabled={!valid}>{initial ? 'Enregistrer' : 'Créer'}</Button>
       </>}>
       <div className="flex flex-col gap-3.5">
-        <Input label="Intitulé" required placeholder="S4" value={form.label}
+        <Input label="Intitulé" required placeholder="S4" maxLength={80} value={form.label}
           onChange={(e) => setForm((f) => ({ ...f, label: e.target.value }))} />
 
         <Select label="Service" required placeholder="Choisir un service" value={form.serviceId}
@@ -97,7 +97,7 @@ export function SemesterFormModal({ open, onClose, initial, onSubmit }) {
         {usingNewService && (
           <div className="flex flex-col gap-3.5 p-3 rounded-md border-[1.5px] border-dashed border-line bg-surface-2">
             <Input label="Nom du nouveau service" required placeholder="Chirurgie Cardiaque CHU Lyon"
-              value={form.newServiceName}
+              maxLength={100} value={form.newServiceName}
               onChange={(e) => setForm((f) => ({ ...f, newServiceName: e.target.value }))} />
             <Select label="Type de service" required value={form.newServiceType}
               onChange={(e) => setForm((f) => ({ ...f, newServiceType: e.target.value }))}
@@ -105,7 +105,7 @@ export function SemesterFormModal({ open, onClose, initial, onSubmit }) {
                 { value: 'cardiaque', label: 'Chirurgie cardiaque' },
                 { value: 'thoracique', label: 'Chirurgie thoracique' },
               ]} />
-            <Input label="Ville" placeholder="Lyon" value={form.newServiceCity}
+            <Input label="Ville" placeholder="Lyon" maxLength={100} value={form.newServiceCity}
               onChange={(e) => setForm((f) => ({ ...f, newServiceCity: e.target.value }))} />
           </div>
         )}
@@ -124,10 +124,10 @@ export function SemesterFormModal({ open, onClose, initial, onSubmit }) {
             onChange={(e) => setForm((f) => ({ ...f, objGestes: e.target.value }))} />
         </div>
 
-        <Input label="Référent / chef de service" placeholder="Pr. Dupont" value={form.supervisor}
+        <Input label="Référent / chef de service" placeholder="Pr. Dupont" maxLength={80} value={form.supervisor}
           onChange={(e) => setForm((f) => ({ ...f, supervisor: e.target.value }))} />
 
-        <TextArea label="Notes / objectifs du semestre" rows={2}
+        <TextArea label="Notes / objectifs du semestre" rows={2} maxLength={500}
           placeholder="Objectifs personnels, particularités du stage…"
           value={form.notes}
           onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} />

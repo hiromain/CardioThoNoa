@@ -19,6 +19,7 @@ import InternDetail from './pages/admin/InternDetail';
 import CatalogManage from './pages/admin/CatalogManage';
 import UserManage from './pages/admin/UserManage';
 import CentreStats from './pages/admin/CentreStats';
+import CentreDetail from './pages/admin/CentreDetail';
 
 // Splash affiché le temps de résoudre la session au démarrage.
 function AuthSplash() {
@@ -58,6 +59,7 @@ export default function App() {
         <Route path="/admin/catalogue" element={<RequireAdmin><CatalogManage /></RequireAdmin>} />
         <Route path="/admin/comptes" element={<RequireAdmin><UserManage /></RequireAdmin>} />
         <Route path="/admin/centres" element={<RequireAdmin><CentreStats /></RequireAdmin>} />
+        <Route path="/admin/centres/:slug" element={<RequireAdmin><CentreDetail /></RequireAdmin>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

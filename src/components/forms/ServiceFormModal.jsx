@@ -42,6 +42,7 @@ export function ServiceFormModal({ open, onClose, initial, onSubmit }) {
           label="Nom du service"
           required
           placeholder="Chirurgie Cardiaque CHU Lyon"
+          maxLength={100}
           value={form.name}
           onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
         />
@@ -55,6 +56,7 @@ export function ServiceFormModal({ open, onClose, initial, onSubmit }) {
         <Input
           label="Ville"
           placeholder="Lyon"
+          maxLength={100}
           value={form.city}
           onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))}
         />

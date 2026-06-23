@@ -336,6 +336,7 @@ export default function NewIntervention() {
                 value={form.notes}
                 onChange={(e) => set('notes', e.target.value)}
                 placeholder="Remarques, contexte clinique…"
+                maxLength={1000}
                 rows={3}
               />
             </FormSection>

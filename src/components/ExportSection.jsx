@@ -66,6 +66,7 @@ export function ExportSection() {
   const patientsFileRef = useRef(null);
 
   const [confirm, setConfirm] = useState(null);
+  const [confirmPatientExport, setConfirmPatientExport] = useState(null);
   const [alert, setAlert] = useState(null);
   const [reportPicker, setReportPicker] = useState(false);
   const [patientExportModal, setPatientExportModal] = useState(false);
@@ -333,8 +334,8 @@ export function ExportSection() {
           <button
             type="button"
             onClick={() => {
-              exportPatientsJSON(data.patients);
               setPatientExportModal(false);
+              setConfirmPatientExport('json');
             }}
             className="w-full flex items-center gap-3 p-3 rounded-lg border text-left active:scale-[0.99] transition-transform"
             style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}
@@ -353,8 +354,8 @@ export function ExportSection() {
           <button
             type="button"
             onClick={() => {
-              exportPatientsCSV(data.patients);
               setPatientExportModal(false);
+              setConfirmPatientExport('csv');
             }}
             className="w-full flex items-center gap-3 p-3 rounded-lg border text-left active:scale-[0.99] transition-transform"
             style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}
@@ -370,6 +371,20 @@ export function ExportSection() {
           </button>
         </div>
       </Modal>
+
+      {/* Confirmation export patients */}
+      <ConfirmDialog
+        open={!!confirmPatientExport}
+        onClose={() => setConfirmPatientExport(null)}
+        onConfirm={() => {
+          if (confirmPatientExport === 'json') exportPatientsJSON(data.patients);
+          else exportPatientsCSV(data.patients);
+        }}
+        title="Exporter les données patients ?"
+        message={`Vous allez exporter ${data.patients.length} patient(s) avec leurs noms, prénoms et dates de naissance. Ces données sont confidentielles — conservez le fichier en lieu sûr.`}
+        confirmLabel="Exporter"
+        danger
+      />
 
       {/* Confirmation import patients */}
       <ConfirmDialog

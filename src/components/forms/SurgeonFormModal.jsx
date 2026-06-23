@@ -65,6 +65,7 @@ export function SurgeonFormModal({ open, onClose, initial, onSubmit }) {
           <Input
             label="Prénom"
             placeholder="Claire"
+            maxLength={60}
             value={form.firstName}
             onChange={(e) => setForm((f) => ({ ...f, firstName: e.target.value }))}
           />
@@ -73,6 +74,7 @@ export function SurgeonFormModal({ open, onClose, initial, onSubmit }) {
           label="Nom"
           required
           placeholder="Mercier"
+          maxLength={60}
           value={form.lastName}
           onChange={(e) => setForm((f) => ({ ...f, lastName: e.target.value }))}
         />

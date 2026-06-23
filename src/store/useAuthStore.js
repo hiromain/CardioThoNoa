@@ -193,8 +193,12 @@ export const useAuthStore = create((set, get) => ({
       set({ error: 'Email et mot de passe requis.' });
       return false;
     }
-    if (password.length < 6) {
-      set({ error: 'Le mot de passe doit faire au moins 6 caractères.' });
+    if (password.length < 8) {
+      set({ error: 'Le mot de passe doit faire au moins 8 caractères.' });
+      return false;
+    }
+    if (!/[A-Z]/.test(password)) {
+      set({ error: 'Le mot de passe doit contenir au moins une majuscule.' });
       return false;
     }
     set({ flow: 'submitting', error: null, email });
@@ -237,8 +241,12 @@ export const useAuthStore = create((set, get) => ({
   // ── Définir / modifier le mot de passe ───────────────────────────────────────
   // Utilisé par les Réglages (compte connecté) ET le flux de récupération.
   updatePassword: async (password) => {
-    if (!password || password.length < 6) {
-      set({ error: 'Le mot de passe doit faire au moins 6 caractères.' });
+    if (!password || password.length < 8) {
+      set({ error: 'Le mot de passe doit faire au moins 8 caractères.' });
+      return false;
+    }
+    if (!/[A-Z]/.test(password)) {
+      set({ error: 'Le mot de passe doit contenir au moins une majuscule.' });
       return false;
     }
     set({ flow: 'submitting', error: null });
@@ -362,7 +370,7 @@ function traduireErreurInscription(error) {
   const msg = error?.message || '';
   if (/already registered|already exists|user already/i.test(msg))
     return 'Un compte existe déjà avec cette adresse. Connecte-toi.';
-  if (/password/i.test(msg)) return 'Mot de passe trop faible (6 caractères minimum).';
+  if (/password/i.test(msg)) return 'Mot de passe trop faible (8 caractères minimum, dont une majuscule).';
   if (/email/i.test(msg)) return 'Adresse email invalide.';
   if (/rate|limit|too many/i.test(msg)) return 'Trop de tentatives. Réessaie dans un instant.';
   return 'Une erreur est survenue. Réessaie.';

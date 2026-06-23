@@ -1,5 +1,16 @@
 // CardioThoNoa — Accès données pour l'interface d'administration.
 //
+// slugify : convertit un nom de ville/centre en segment d'URL lisible.
+export function slugify(str) {
+  return String(str)
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/\p{Mn}/gu, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+//
 // Toutes ces requêtes sont protégées côté serveur par la RLS / les fonctions
 // SECURITY DEFINER de la migration 0004 : un non-admin obtient une liste vide ou
 // une erreur. Le gating côté client (isAdmin) n'est qu'une commodité UX.
