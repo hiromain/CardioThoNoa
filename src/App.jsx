@@ -33,6 +33,14 @@ function AuthSplash() {
   );
 }
 
+function AdminHomeRedirect() {
+  const isAdmin = useAuthStore((s) => s.isAdmin);
+  const profileLoaded = useAuthStore((s) => s.profileLoaded);
+  if (!profileLoaded) return null;
+  if (isAdmin) return <Navigate to="/admin" replace />;
+  return <Dashboard />;
+}
+
 export default function App() {
   const status = useAuthStore((s) => s.status);
 
@@ -43,7 +51,7 @@ export default function App() {
     <Routes>
       <Route path="/semestres/:id/rapport" element={<SemesterReport />} />
       <Route element={<AppLayout />}>
-        <Route path="/" element={<Dashboard />} />
+        <Route path="/" element={<AdminHomeRedirect />} />
         <Route path="/semestres" element={<Semestres />} />
         <Route path="/semestres/:id" element={<SemestreDetail />} />
         <Route path="/interventions/nouvelle" element={<NewIntervention />} />

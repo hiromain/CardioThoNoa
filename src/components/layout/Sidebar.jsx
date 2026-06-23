@@ -58,12 +58,20 @@ export function Sidebar() {
       </div>
 
       <nav className="flex-1 px-3 py-4 flex flex-col gap-0.5">
-        <SidebarItem to="/" icon={Home} label="Accueil" end />
-        <SidebarItem to="/semestres" icon={Calendar} label="Semestres" />
-        <SidebarItem to="/statistiques" icon={BarChart3} label="Statistiques" />
-        <SidebarItem to="/patients" icon={Users} label="Patients" />
-        <SidebarItem to="/parametres" icon={Settings} label="Réglages" />
-        {isAdmin && <SidebarItem to="/admin" icon={Shield} label="Administration" />}
+        {isAdmin ? (
+          <>
+            <SidebarItem to="/admin" icon={Shield} label="Administration" end />
+            <SidebarItem to="/parametres" icon={Settings} label="Réglages" />
+          </>
+        ) : (
+          <>
+            <SidebarItem to="/" icon={Home} label="Accueil" end />
+            <SidebarItem to="/semestres" icon={Calendar} label="Semestres" />
+            <SidebarItem to="/statistiques" icon={BarChart3} label="Statistiques" />
+            <SidebarItem to="/patients" icon={Users} label="Patients" />
+            <SidebarItem to="/parametres" icon={Settings} label="Réglages" />
+          </>
+        )}
       </nav>
 
       <div className="px-3 py-3 border-t border-line">
@@ -72,13 +80,15 @@ export function Sidebar() {
             className="shrink-0 flex items-center justify-center rounded-full text-white text-sm font-bold"
             style={{ width: 36, height: 36, backgroundColor: 'rgba(255,255,255,0.12)' }}
           >
-            {data.profile?.initiales || '?'}
+            {isAdmin ? <Shield size={16} /> : (data.profile?.initiales || '?')}
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-1)' }}>
-              {data.profile?.prenom && data.profile?.nom
-                ? `${data.profile.prenom} ${data.profile.nom}`
-                : data.profile?.prenom || data.profile?.nom || ''}
+              {isAdmin ? 'Administrateur' : (
+                data.profile?.prenom && data.profile?.nom
+                  ? `${data.profile.prenom} ${data.profile.nom}`
+                  : data.profile?.prenom || data.profile?.nom || ''
+              )}
             </p>
             <p className="text-xs truncate" style={{ color: 'var(--text-3)' }}>
               {user?.email}
@@ -91,20 +101,22 @@ export function Sidebar() {
         </div>
       </div>
 
-      <div className="p-4 border-t border-line">
-        <button
-          type="button"
-          onClick={() => navigate('/interventions/nouvelle')}
-          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-white text-sm font-semibold transition-all hover:opacity-90 active:scale-95"
-          style={{
-            background: 'var(--primary)',
-            boxShadow: '0 4px 14px rgba(30,58,95,0.35)',
-          }}
-        >
-          <Plus size={17} strokeWidth={2.5} />
-          Nouvelle intervention
-        </button>
-      </div>
+      {!isAdmin && (
+        <div className="p-4 border-t border-line">
+          <button
+            type="button"
+            onClick={() => navigate('/interventions/nouvelle')}
+            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-white text-sm font-semibold transition-all hover:opacity-90 active:scale-95"
+            style={{
+              background: 'var(--primary)',
+              boxShadow: '0 4px 14px rgba(30,58,95,0.35)',
+            }}
+          >
+            <Plus size={17} strokeWidth={2.5} />
+            Nouvelle intervention
+          </button>
+        </div>
+      )}
     </aside>
   );
 }
