@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, Building2, Activity, ListChecks, UserCog, ChevronRight } from 'lucide-react';
+import { Users, Building2, Activity, ChevronRight } from 'lucide-react';
 import { TopBar } from '../../components/layout/TopBar';
 import { Card, StatCard, Select, EmptyState } from '../../components/ui';
 import { formatDate } from '../../lib/dates';
@@ -119,28 +119,6 @@ export default function AdminDashboard() {
     <div>
       <TopBar title="Administration" subtitle="Supervision des internes et des centres" />
       <div className="px-4 py-4 lg:px-8 lg:py-8 max-w-6xl mx-auto flex flex-col gap-5">
-
-        {/* ── Navigation rapide ────────────────────────────────────────── */}
-        <div className="grid grid-cols-3 gap-3">
-          <NavCard
-            icon={<UserCog size={18} />}
-            title="Comptes & rôles"
-            sub="Promouvoir, rattacher"
-            onClick={() => navigate('/admin/comptes')}
-          />
-          <NavCard
-            icon={<ListChecks size={18} />}
-            title="Catalogue"
-            sub="Gestes partagés"
-            onClick={() => navigate('/admin/catalogue')}
-          />
-          <NavCard
-            icon={<Building2 size={18} />}
-            title="Centres"
-            sub="Stats comparées"
-            onClick={() => navigate('/admin/centres')}
-          />
-        </div>
 
         {loading ? (
           <div className="text-center text-ink-3 text-sm py-10">Chargement…</div>
@@ -403,22 +381,6 @@ export default function AdminDashboard() {
 
 // ── Composants internes ─────────────────────────────────────────────────────
 
-function NavCard({ icon, title, sub, onClick }) {
-  return (
-    <Card
-      onClick={onClick}
-      className="flex items-center gap-3 cursor-pointer hover:bg-surface-2 transition-colors"
-    >
-      <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary shrink-0">
-        {icon}
-      </div>
-      <div className="min-w-0">
-        <div className="text-[14px] font-semibold text-ink-1 truncate">{title}</div>
-        <div className="text-[11px] text-ink-3 truncate">{sub}</div>
-      </div>
-    </Card>
-  );
-}
 
 function AlertCard({ level, emoji, title, sub, action }) {
   const bg    = level === 'ok'   ? 'rgba(39,174,96,0.08)'

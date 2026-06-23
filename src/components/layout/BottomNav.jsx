@@ -1,5 +1,5 @@
 import { NavLink, useNavigate } from 'react-router-dom';
-import { Home, BarChart3, Users, Settings, Plus, Shield } from 'lucide-react';
+import { Home, BarChart3, Users, Settings, Plus, Shield, UserCog, ListChecks, Building2 } from 'lucide-react';
 import { useAuthStore } from '../../store/useAuthStore';
 
 function Tab({ to, icon: Icon, label, end }) {
@@ -34,7 +34,10 @@ export function BottomNav() {
   if (isAdmin) {
     return (
       <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-app h-20 pb-safe glass border-t border-line z-[100] flex items-center px-2 lg:hidden">
-        <Tab to="/admin" icon={Shield} label="Admin" end />
+        <Tab to="/admin" icon={Shield} label="Internes" end />
+        <Tab to="/admin/comptes" icon={UserCog} label="Comptes" />
+        <Tab to="/admin/catalogue" icon={ListChecks} label="Catalogue" />
+        <Tab to="/admin/centres" icon={Building2} label="Centres" />
         <Tab to="/parametres" icon={Settings} label="Réglages" />
       </div>
     );

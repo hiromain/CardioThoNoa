@@ -1,5 +1,5 @@
 import { NavLink, useNavigate } from 'react-router-dom';
-import { Home, BarChart3, Users, Settings, Plus, Calendar, Shield } from 'lucide-react';
+import { Home, BarChart3, Users, Settings, Plus, Calendar, Shield, UserCog, ListChecks, Building2 } from 'lucide-react';
 import { useData, useCurrentSemester } from '../../store/hooks';
 import { useStore } from '../../store/useStore';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -60,7 +60,10 @@ export function Sidebar() {
       <nav className="flex-1 px-3 py-4 flex flex-col gap-0.5">
         {isAdmin ? (
           <>
-            <SidebarItem to="/admin" icon={Shield} label="Administration" end />
+            <SidebarItem to="/admin" icon={Shield} label="Internes" end />
+            <SidebarItem to="/admin/comptes" icon={UserCog} label="Comptes & rôles" />
+            <SidebarItem to="/admin/catalogue" icon={ListChecks} label="Catalogue de gestes" />
+            <SidebarItem to="/admin/centres" icon={Building2} label="Stats par centre" />
             <SidebarItem to="/parametres" icon={Settings} label="Réglages" />
           </>
         ) : (
