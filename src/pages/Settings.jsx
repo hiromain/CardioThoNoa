@@ -30,6 +30,7 @@ import {
   BadgeCheck,
   KeyRound,
   Mail,
+  Eraser,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useData } from '../store/hooks';
