@@ -1,31 +1,20 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Trash2, Building2 } from 'lucide-react';
 import { TopBar } from '../../components/layout/TopBar';
-import { Card, Select, Input, Button, EmptyState, ConfirmDialog } from '../../components/ui';
+import { Card, Select, EmptyState } from '../../components/ui';
 import { ROLES } from '../../data/constants';
-import {
-  listInterns,
-  listCentres,
-  setRole,
-  assignCentre,
-  createCentre,
-  deleteCentre,
-} from '../../lib/adminQueries';
+import { listInterns, listCentres, setRole, assignCentre } from '../../lib/adminQueries';
 
 const ROLE_OPTIONS = [
   { value: ROLES.INTERN, label: 'Interne' },
   { value: ROLES.ADMIN, label: 'Administrateur' },
 ];
 
-// Gestion des comptes (rôle, rattachement à un centre) et des centres.
 export default function UserManage() {
   const navigate = useNavigate();
   const [rows, setRows] = useState([]);
   const [centres, setCentres] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [newCentre, setNewCentre] = useState({ name: '', city: '' });
-  const [confirmCentre, setConfirmCentre] = useState(null);
 
   async function reload() {
     const [r, c] = await Promise.all([listInterns(), listCentres()]);
@@ -68,79 +57,10 @@ export default function UserManage() {
     }
   }
 
-  async function addCentre() {
-    if (!newCentre.name.trim()) return;
-    try {
-      await createCentre({ name: newCentre.name.trim(), city: newCentre.city.trim() });
-      setNewCentre({ name: '', city: '' });
-      reload();
-    } catch {
-      window.alert('Création impossible.');
-    }
-  }
-
-  async function removeCentre(centre) {
-    try {
-      await deleteCentre(centre.id);
-      reload();
-    } catch {
-      window.alert('Suppression impossible.');
-    } finally {
-      setConfirmCentre(null);
-    }
-  }
-
   return (
     <div>
-      <TopBar title="Comptes & centres" subtitle="Rôles et rattachements" onBack={() => navigate('/admin')} />
-      <div className="px-4 py-4 lg:px-8 lg:py-8 max-w-4xl mx-auto flex flex-col gap-4">
-        {/* Centres */}
-        <Card>
-          <h2 className="text-[15px] font-bold text-ink-1 mb-3 flex items-center gap-2">
-            <Building2 size={17} className="text-primary" /> Centres
-          </h2>
-          {centres.length === 0 ? (
-            <p className="text-sm text-ink-3 mb-3">Aucun centre. Crée le premier ci-dessous.</p>
-          ) : (
-            <ul className="flex flex-col gap-1.5 mb-3">
-              {centres.map((c) => (
-                <li key={c.id} className="flex items-center gap-2 text-sm">
-                  <span className="flex-1 text-ink-1">{c.name}</span>
-                  {c.city && <span className="text-ink-3 text-xs">{c.city}</span>}
-                  <button
-                    type="button"
-                    onClick={() => setConfirmCentre(c)}
-                    className="p-1.5 text-ink-3 hover:text-danger"
-                    aria-label="Supprimer le centre"
-                  >
-                    <Trash2 size={15} />
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-          <div className="flex flex-col sm:flex-row gap-2 items-end">
-            <Input
-              label="Nom du centre"
-              wrapClassName="flex-1 w-full"
-              placeholder="CHU de Lyon — Louis Pradel"
-              value={newCentre.name}
-              onChange={(e) => setNewCentre((s) => ({ ...s, name: e.target.value }))}
-            />
-            <Input
-              label="Ville"
-              wrapClassName="sm:w-40 w-full"
-              placeholder="Lyon"
-              value={newCentre.city}
-              onChange={(e) => setNewCentre((s) => ({ ...s, city: e.target.value }))}
-            />
-            <Button onClick={addCentre} disabled={!newCentre.name.trim()}>
-              <Plus size={16} /> Ajouter
-            </Button>
-          </div>
-        </Card>
-
-        {/* Comptes */}
+      <TopBar title="Comptes" subtitle="Rôles et rattachements" onBack={() => navigate('/admin')} />
+      <div className="px-4 py-4 lg:px-8 lg:py-8 max-w-4xl mx-auto">
         <Card padding="p-0">
           {loading ? (
             <div className="px-5 py-10 text-center text-ink-3 text-sm">Chargement…</div>
@@ -174,16 +94,6 @@ export default function UserManage() {
           )}
         </Card>
       </div>
-
-      <ConfirmDialog
-        open={!!confirmCentre}
-        title="Supprimer ce centre ?"
-        message="Les comptes rattachés seront détachés (non supprimés)."
-        confirmLabel="Supprimer"
-        danger
-        onConfirm={() => removeCentre(confirmCentre)}
-        onClose={() => setConfirmCentre(null)}
-      />
     </div>
   );
 }
