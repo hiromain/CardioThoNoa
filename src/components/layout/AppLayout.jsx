@@ -43,10 +43,10 @@ export function AppLayout() {
     <div className="min-h-screen bg-bg">
       {theme !== 'dark' && <BackgroundArt type={specialty.key} />}
       <Sidebar />
-      <div className="relative z-10 min-h-screen flex flex-col lg:ml-60">
+      <div className="relative z-10 min-h-screen flex flex-col md:ml-60">
         <div
-          className={`w-full max-w-app mx-auto lg:max-w-none lg:mx-0 flex flex-col flex-1 ${
-            !hideNav ? 'pb-[88px] lg:pb-0' : ''
+          className={`w-full flex flex-col flex-1 ${
+            !hideNav ? 'pb-[88px] md:pb-0' : ''
           }`}
         >
           {showLockedBanner && <DemoBanner isDemo={isDemo} />}

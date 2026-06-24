@@ -216,7 +216,7 @@ export default function Statistics() {
 
       <div className="flex">
         {/* ── Panneau filtres desktop ── */}
-        <aside className="hidden lg:flex flex-col gap-5 w-64 shrink-0 sticky top-0 h-screen overflow-y-auto border-r border-line bg-surface p-4">
+        <aside className="hidden md:flex flex-col gap-5 w-64 shrink-0 sticky top-0 h-screen overflow-y-auto border-r border-line bg-surface p-4">
           <div className="flex items-center justify-between">
             <h2 className="text-[14px] font-bold text-ink-1">Filtres</h2>
             {activeAdvancedFilters > 0 && (
@@ -311,7 +311,7 @@ export default function Statistics() {
         {/* ── Contenu principal ── */}
         <div className="flex-1 min-w-0 px-4 py-4 flex flex-col gap-5">
           {/* Filtres mobiles uniquement */}
-          <div className="flex flex-col gap-2.5 lg:hidden">
+          <div className="flex flex-col gap-2.5 md:hidden">
             <SegmentedControl options={periodOptions} value={period} onChange={setPeriod} />
             <SegmentedControl
               options={[

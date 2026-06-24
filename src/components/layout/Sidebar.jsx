@@ -37,7 +37,7 @@ export function Sidebar() {
     '#C0392B';
 
   return (
-    <aside className="hidden lg:flex flex-col fixed left-0 top-0 bottom-0 w-60 z-50 glass border-r border-line">
+    <aside className="hidden md:flex flex-col fixed left-0 top-0 bottom-0 w-60 z-50 glass border-r border-line">
       <div className="px-5 pt-7 pb-5 border-b border-line">
         <div className="flex items-center gap-2.5">
           <div
