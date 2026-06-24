@@ -769,7 +769,7 @@ export default function Settings() {
             <Button
               fullWidth
               onClick={submitPassword}
-              disabled={pwBusy || pwDone || pwValue.length < 6}
+              disabled={pwBusy || pwDone || pwValue.length < 10}
             >
               {pwDone ? 'Enregistré ✓' : pwBusy ? 'Enregistrement…' : 'Enregistrer'}
             </Button>
@@ -780,7 +780,7 @@ export default function Settings() {
           label="Nouveau mot de passe"
           type="password"
           autoComplete="new-password"
-          placeholder="6 caractères minimum"
+          placeholder="10 car. min. — Aa + chiffre"
           value={pwValue}
           onChange={(e) => setPwValue(e.target.value)}
         />

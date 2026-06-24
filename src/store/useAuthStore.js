@@ -33,6 +33,8 @@ export const useAuthStore = create((set, get) => ({
   authProvider: null,
   // Flux « mot de passe oublié » : email de réinitialisation envoyé.
   resetSent: false,
+  // Inscription terminée, en attente de clic sur le lien de confirmation email.
+  signUpConfirmationPending: false,
   // L'utilisateur est arrivé via un lien de réinitialisation (évènement
   // PASSWORD_RECOVERY) → l'écran propose de choisir un nouveau mot de passe.
   recovery: false,
@@ -130,7 +132,7 @@ export const useAuthStore = create((set, get) => ({
   // Modale d'upgrade globale (ouverte par le garde d'écriture).
   upgradeOpen: false,
 
-  setAuthView: (view) => set({ authView: view, error: null, resetSent: false }),
+  setAuthView: (view) => set({ authView: view, error: null, resetSent: false, signUpConfirmationPending: false }),
 
   openUpgrade: () => set({ upgradeOpen: true }),
   closeUpgrade: () => set({ upgradeOpen: false }),
@@ -193,26 +195,24 @@ export const useAuthStore = create((set, get) => ({
       set({ error: 'Email et mot de passe requis.' });
       return false;
     }
-    if (password.length < 8) {
-      set({ error: 'Le mot de passe doit faire au moins 8 caractères.' });
-      return false;
-    }
-    if (!/[A-Z]/.test(password)) {
-      set({ error: 'Le mot de passe doit contenir au moins une majuscule.' });
+    const pwError = validatePassword(password);
+    if (pwError) {
+      set({ error: pwError });
       return false;
     }
     set({ flow: 'submitting', error: null, email });
-    const { data, error } = await supabase.auth.signUp({ email, password });
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { emailRedirectTo: window.location.origin },
+    });
     if (error) {
       set({ flow: 'idle', error: traduireErreurInscription(error) });
       return false;
     }
     if (!data.session) {
-      set({
-        flow: 'idle',
-        error:
-          "Confirmation par email requise : désactive « Confirm email » dans Supabase, ou clique le lien reçu.",
-      });
+      // Email de confirmation envoyé — session ouverte après clic sur le lien.
+      set({ flow: 'idle', signUpConfirmationPending: true });
       return false;
     }
     // onAuthStateChange basculera le status à 'signed-in'.
@@ -241,12 +241,9 @@ export const useAuthStore = create((set, get) => ({
   // ── Définir / modifier le mot de passe ───────────────────────────────────────
   // Utilisé par les Réglages (compte connecté) ET le flux de récupération.
   updatePassword: async (password) => {
-    if (!password || password.length < 8) {
-      set({ error: 'Le mot de passe doit faire au moins 8 caractères.' });
-      return false;
-    }
-    if (!/[A-Z]/.test(password)) {
-      set({ error: 'Le mot de passe doit contenir au moins une majuscule.' });
+    const pwError = validatePassword(password);
+    if (pwError) {
+      set({ error: pwError });
       return false;
     }
     set({ flow: 'submitting', error: null });
@@ -356,6 +353,18 @@ export const useAuthStore = create((set, get) => ({
   },
 }));
 
+function validatePassword(password) {
+  if (!password || password.length < 10)
+    return 'Le mot de passe doit faire au moins 10 caractères.';
+  if (!/[a-z]/.test(password))
+    return 'Le mot de passe doit contenir au moins une minuscule.';
+  if (!/[A-Z]/.test(password))
+    return 'Le mot de passe doit contenir au moins une majuscule.';
+  if (!/\d/.test(password))
+    return 'Le mot de passe doit contenir au moins un chiffre.';
+  return null;
+}
+
 function traduireErreurConnexion(error) {
   const msg = error?.message || '';
   if (/invalid login|invalid credentials/i.test(msg))
@@ -370,7 +379,7 @@ function traduireErreurInscription(error) {
   const msg = error?.message || '';
   if (/already registered|already exists|user already/i.test(msg))
     return 'Un compte existe déjà avec cette adresse. Connecte-toi.';
-  if (/password/i.test(msg)) return 'Mot de passe trop faible (8 caractères minimum, dont une majuscule).';
+  if (/password/i.test(msg)) return 'Mot de passe trop faible (10 caractères minimum, majuscule + minuscule + chiffre).';
   if (/email/i.test(msg)) return 'Adresse email invalide.';
   if (/rate|limit|too many/i.test(msg)) return 'Trop de tentatives. Réessaie dans un instant.';
   return 'Une erreur est survenue. Réessaie.';

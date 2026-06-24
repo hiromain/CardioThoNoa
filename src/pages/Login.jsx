@@ -24,6 +24,7 @@ export default function Login() {
   const authView = useAuthStore((s) => s.authView);
   const recovery = useAuthStore((s) => s.recovery);
   const resetSent = useAuthStore((s) => s.resetSent);
+  const signUpConfirmationPending = useAuthStore((s) => s.signUpConfirmationPending);
   const setAuthView = useAuthStore((s) => s.setAuthView);
   const signIn = useAuthStore((s) => s.signIn);
   const signUp = useAuthStore((s) => s.signUp);
@@ -83,6 +84,26 @@ export default function Login() {
               </p>
             </div>
           </Card>
+        ) : signUpConfirmationPending ? (
+          // ── Confirmation email envoyée ─────────────────────────────────────
+          <Card>
+            <div className="flex flex-col items-center text-center gap-3 py-2">
+              <CheckCircle2 size={28} className="text-success" />
+              <div className="text-[15px] font-bold text-ink-1">Vérifie ta boîte mail</div>
+              <p className="text-[13px] text-ink-2 leading-relaxed">
+                Un email de confirmation a été envoyé à{' '}
+                <span className="font-semibold text-ink-1">{email}</span>.
+                Clique le lien reçu pour activer ton compte — comme le <em>time-out</em> au bloc, c'est obligatoire avant d'inciser.
+              </p>
+              <button
+                type="button"
+                onClick={() => setAuthView('login')}
+                className="flex items-center justify-center gap-1.5 text-[13px] text-ink-3 font-medium mt-1"
+              >
+                <ArrowLeft size={14} /> Retour à la connexion
+              </button>
+            </div>
+          </Card>
         ) : recovery ? (
           // ── Nouveau mot de passe (retour de « mot de passe oublié ») ──────────
           <Card>
@@ -97,13 +118,13 @@ export default function Login() {
                 label="Nouveau mot de passe"
                 type="password"
                 autoComplete="new-password"
-                placeholder="6 caractères minimum"
+                placeholder="10 car. min. — Aa + chiffre"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 autoFocus
               />
               {error && <ErrorLine message={error} />}
-              <Button type="submit" fullWidth size="lg" disabled={busy || newPassword.length < 6}>
+              <Button type="submit" fullWidth size="lg" disabled={busy || newPassword.length < 10}>
                 <KeyRound size={16} />
                 {busy ? 'Enregistrement…' : 'Définir le mot de passe'}
               </Button>
@@ -202,7 +223,7 @@ export default function Login() {
                   label="Mot de passe"
                   type="password"
                   autoComplete={isSignup ? 'new-password' : 'current-password'}
-                  placeholder={isSignup ? '6 caractères minimum' : '••••••••'}
+                  placeholder={isSignup ? '10 car. min. — Aa + chiffre' : '••••••••'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                 />
