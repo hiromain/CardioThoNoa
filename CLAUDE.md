@@ -61,9 +61,17 @@ existante.
   source unique du catalogue (lue par tous, écrite par les admins). Elle n'est
   **plus** synchronisée par-utilisateur (`procedureTypes` retiré de
   `CLOUD_FIELDS`/`SYNC_FIELDS`). Chargement via `src/lib/catalog.js` +
-  `setCatalog`. Un interne peut ajouter un geste **personnel local**
-  (`local: true`, jamais synchronisé) à la volée dans NewIntervention ; le
-  catalogue officiel se gère dans l'espace admin (`/admin/catalogue`).
+  `setCatalog`. Les internes ne peuvent **pas** modifier la liste ; seuls les
+  admins la gèrent (`/admin/catalogue`, écriture live via `adminQueries.js`).
+- **Source de vérité du catalogue + seed** : `src/data/procedureTypes.js` est le
+  **seul fichier hand-éditable** (tableau camelCase). Il sert au 1er boot du
+  store et au **mode démo**. Pour propager une modif vers la table partagée :
+  éditer ce fichier puis lancer **`npm run seed:catalog`**
+  (`scripts/seedCatalog.mjs` → upsert/fusion par `id`, ne supprime jamais les
+  gestes créés par les admins). Le script utilise `SUPABASE_URL` /
+  `SUPABASE_SERVICE_ROLE_KEY` (Node, hors `VITE_`, voir `.env.example`). Le bloc
+  `insert` SQL de la migration 0004 n'a servi qu'au seed initial : ne plus
+  l'éditer à la main.
 - **Centres** : table `centres` ; chaque interne se rattache via
   `profiles.centre_id` (Réglages + onboarding). Sert aux stats par centre.
 - **Espace admin** : routes `/admin/*` (gardées par `RequireAdmin` ET la RLS),

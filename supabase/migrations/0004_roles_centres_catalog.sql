@@ -196,6 +196,9 @@ $$;
 
 -- ── 8. Seed du catalogue de gestes (source : src/data/procedureTypes.js) ─────
 -- Idempotent : on n'écrase pas d'éventuelles personnalisations admin.
+-- NB : ce bloc n'a servi qu'au seed initial. NE PLUS l'éditer à la main : le
+-- catalogue se met désormais à jour via `npm run seed:catalog` (qui pousse
+-- src/data/procedureTypes.js en upsert). Conservé ici comme trace historique.
 insert into public.procedure_types
   (id, name, abbr, scope, service_type, intern_steps, is_step, sort_order)
 values
