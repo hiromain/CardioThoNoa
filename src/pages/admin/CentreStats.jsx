@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ChevronRight, Plus, Trash2, Pencil, Check, X } from 'lucide-react';
 import { TopBar } from '../../components/layout/TopBar';
 import { Card, EmptyState, Input, Button, ConfirmDialog } from '../../components/ui';
+import { Select } from '../../components/ui/Field';
 import {
   listInterns,
   listCentres,
@@ -12,13 +13,19 @@ import {
   deleteCentre,
 } from '../../lib/adminQueries';
 
+const TITRE_OPTIONS = ['Pr.', 'Dr.', ''];
+
+function emptySurgeon() {
+  return { title: 'Dr.', firstName: '', lastName: '' };
+}
+
 export default function CentreStats() {
   const navigate = useNavigate();
   const [rows, setRows] = useState([]);
   const [centres, setCentres] = useState([]);
   const [loading, setLoading] = useState(true);
   const [newCentre, setNewCentre] = useState({ name: '', city: '' });
-  const [editing, setEditing] = useState(null); // { id, name, city }
+  const [editing, setEditing] = useState(null); // { id, name, city, surgeons }
   const [confirmDelete, setConfirmDelete] = useState(null);
 
   async function reload() {
@@ -37,7 +44,7 @@ export default function CentreStats() {
     centres.forEach((c) =>
       byCentre.set(c.id, { ...c, interns: 0, interventions: 0 })
     );
-    byCentre.set('__none', { id: '__none', name: 'Non rattaché', city: null, interns: 0, interventions: 0 });
+    byCentre.set('__none', { id: '__none', name: 'Non rattaché', city: null, surgeons: [], interns: 0, interventions: 0 });
     rows.forEach((r) => {
       const key = r.centre_id && byCentre.has(r.centre_id) ? r.centre_id : '__none';
       const b = byCentre.get(key);
@@ -63,13 +70,42 @@ export default function CentreStats() {
   }
 
   function startEdit(c) {
-    setEditing({ id: c.id, name: c.name, city: c.city || '' });
+    setEditing({
+      id: c.id,
+      name: c.name,
+      city: c.city || '',
+      surgeons: c.surgeons?.length ? c.surgeons.map((s) => ({ ...s })) : [emptySurgeon()],
+    });
+  }
+
+  function addSurgeonRow() {
+    setEditing((v) => ({ ...v, surgeons: [...v.surgeons, emptySurgeon()] }));
+  }
+
+  function removeSurgeonRow(idx) {
+    setEditing((v) => ({
+      ...v,
+      surgeons: v.surgeons.length > 1 ? v.surgeons.filter((_, i) => i !== idx) : [emptySurgeon()],
+    }));
+  }
+
+  function updateSurgeonRow(idx, patch) {
+    setEditing((v) => ({
+      ...v,
+      surgeons: v.surgeons.map((sg, i) => (i === idx ? { ...sg, ...patch } : sg)),
+    }));
   }
 
   async function saveEdit() {
     if (!editing?.name.trim()) return;
+    // Ne conserver que les chirurgiens avec au moins un nom de famille.
+    const surgeons = editing.surgeons.filter((sg) => sg.lastName.trim());
     try {
-      await updateCentre(editing.id, { name: editing.name.trim(), city: editing.city.trim() });
+      await updateCentre(editing.id, {
+        name: editing.name.trim(),
+        city: editing.city.trim() || null,
+        surgeons,
+      });
       setEditing(null);
       reload();
     } catch {
@@ -128,13 +164,18 @@ export default function CentreStats() {
             {stats.map((s) => {
               const isReal = s.id !== '__none';
               const isEditing = editing?.id === s.id;
+              const surgeonLine = (s.surgeons ?? [])
+                .filter((sg) => sg.lastName?.trim())
+                .map((sg) => [sg.title, sg.lastName].filter(Boolean).join(' '))
+                .join(' · ');
 
               if (isEditing) {
                 return (
                   <div
                     key={s.id}
-                    className="px-3 py-2.5 rounded-xl border border-primary/30 bg-surface-2 flex flex-col gap-2"
+                    className="px-3 py-3 rounded-xl border border-primary/30 bg-surface-2 flex flex-col gap-3"
                   >
+                    {/* Nom + Ville */}
                     <div className="flex flex-col sm:flex-row gap-2 items-end">
                       <Input
                         label="Nom"
@@ -150,7 +191,55 @@ export default function CentreStats() {
                         onChange={(e) => setEditing((v) => ({ ...v, city: e.target.value }))}
                       />
                     </div>
-                    <div className="flex gap-2 justify-end">
+
+                    {/* Chirurgiens */}
+                    <div>
+                      <div className="text-[11px] font-semibold text-ink-3 uppercase tracking-wide mb-2">
+                        Chirurgiens du service
+                      </div>
+                      <div className="flex flex-col gap-1.5">
+                        {editing.surgeons.map((sg, i) => (
+                          <div key={i} className="flex gap-1.5 items-end">
+                            <div className="w-16 shrink-0">
+                              <Select
+                                label="Titre"
+                                value={sg.title}
+                                onChange={(e) => updateSurgeonRow(i, { title: e.target.value })}
+                                options={TITRE_OPTIONS}
+                              />
+                            </div>
+                            <Input
+                              label="Prénom"
+                              placeholder="Marie"
+                              wrapClassName="w-28 shrink-0"
+                              value={sg.firstName}
+                              onChange={(e) => updateSurgeonRow(i, { firstName: e.target.value })}
+                            />
+                            <Input
+                              label="Nom"
+                              placeholder="Dupont"
+                              wrapClassName="flex-1"
+                              value={sg.lastName}
+                              onChange={(e) => updateSurgeonRow(i, { lastName: e.target.value })}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => removeSurgeonRow(i)}
+                              className="mb-1 p-1.5 text-ink-3 hover:text-danger shrink-0"
+                              aria-label="Supprimer ce chirurgien"
+                            >
+                              <X size={14} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                      <Button variant="secondary" size="sm" className="mt-2" onClick={addSurgeonRow}>
+                        <Plus size={14} /> Ajouter un chirurgien
+                      </Button>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex gap-2 justify-end border-t border-line pt-2">
                       <Button variant="ghost" size="sm" onClick={() => setEditing(null)}>
                         <X size={14} /> Annuler
                       </Button>
@@ -180,6 +269,9 @@ export default function CentreStats() {
                       style={{ width: `${(s.interventions / maxInterventions) * 100}%` }}
                     />
                   </div>
+                  {surgeonLine && (
+                    <div className="text-[11px] text-ink-3 mt-1.5 truncate">{surgeonLine}</div>
+                  )}
                 </>
               );
 
