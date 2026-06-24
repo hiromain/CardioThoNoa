@@ -119,31 +119,44 @@ export default function CatalogManage() {
       />
 
       {/* Barre de filtres */}
-      <div className="sticky top-[52px] z-40 glass border-b border-line px-4 py-2.5 flex gap-2">
+      <div className="sticky top-[52px] z-40 glass border-b border-line px-4 py-2.5 flex gap-2 items-center">
         <div className="relative flex-1">
-          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-3 pointer-events-none" />
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-3 pointer-events-none" />
           <input
             type="search"
-            placeholder="Rechercher…"
+            placeholder="Rechercher un geste…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-8 pr-3 py-1.5 rounded-md text-[14px] border border-line bg-surface text-ink-1 outline-none focus:border-primary"
+            className="w-full pl-8 pr-3 py-1.5 rounded-lg text-[14px] border border-line bg-surface text-ink-1 outline-none focus:border-primary transition-colors"
           />
         </div>
         <select
           value={scopeFilter}
           onChange={(e) => setScopeFilter(e.target.value)}
-          className="text-[13px] px-2.5 py-1.5 rounded-md border border-line bg-surface text-ink-1 outline-none focus:border-primary"
+          className="text-[13px] px-2.5 py-1.5 rounded-lg border border-line bg-surface text-ink-1 outline-none focus:border-primary transition-colors shrink-0"
         >
           {SCOPE_OPTIONS.map((o) => (
             <option key={o.value} value={o.value}>{o.label}</option>
           ))}
         </select>
+        {(search || scopeFilter) && (
+          <button
+            type="button"
+            onClick={() => { setSearch(''); setScopeFilter(''); }}
+            className="text-[12px] font-semibold text-ink-3 hover:text-ink-1 shrink-0 transition-colors"
+          >
+            Effacer
+          </button>
+        )}
       </div>
 
       <div className="px-4 py-4 lg:px-8 lg:py-6 max-w-4xl mx-auto flex flex-col gap-3">
         {loading ? (
-          <div className="py-16 text-center text-ink-3 text-sm">Chargement…</div>
+          <div className="flex flex-col gap-3">
+            {[120, 96, 140, 96].map((h, i) => (
+              <div key={i} className="rounded-xl skeleton" style={{ height: h }} />
+            ))}
+          </div>
         ) : total === 0 ? (
           <EmptyState icon="🔍" title="Aucun geste" subtitle={isFiltering ? 'Modifie les filtres.' : 'Ajoute un premier geste.'} />
         ) : (
