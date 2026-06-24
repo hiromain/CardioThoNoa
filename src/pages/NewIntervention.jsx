@@ -34,7 +34,7 @@ export default function NewIntervention() {
   const addIntervention = useStore((s) => s.addIntervention);
   const updateIntervention = useStore((s) => s.updateIntervention);
   const addPatient = useStore((s) => s.addPatient);
-  const addProcedureType = useStore((s) => s.addProcedureType);
+
 
   const editing = byId(data.interventions, id);
   const semesters = activeSemesters(data);
@@ -111,20 +111,6 @@ export default function NewIntervention() {
     // on réinitialise la sélection interne pour éviter des gestes orphelins.
     setForm((f) => ({ ...f, patientProcedures: ids, internProcedures: [] }));
     setShowAllIntern(false);
-  }
-
-  function addProcedureOfScope(scope) {
-    return (rawName) => {
-      const name = rawName.trim();
-      if (!name || !service) return null;
-      return addProcedureType({
-        name,
-        abbr: name,
-        scope,
-        serviceType: service.type,
-        internSteps: [],
-      });
-    };
   }
 
   const valid = form.semesterId && form.patientId && form.surgeonId && form.date;
@@ -268,7 +254,6 @@ export default function NewIntervention() {
                 selectedIds={form.patientProcedures}
                 onChange={changePatientProcedures}
                 variant="neutral"
-                onAddProcedure={service ? addProcedureOfScope('patient') : undefined}
               />
             </FormSection>
 
@@ -309,15 +294,6 @@ export default function NewIntervention() {
                 color={cfg.color}
                 light="var(--surface)"
                 variant="accent"
-                onAddProcedure={
-                  service
-                    ? (rawName) => {
-                        const newId = addProcedureOfScope('intern')(rawName);
-                        if (newId) setShowAllIntern(true);
-                        return newId;
-                      }
-                    : undefined
-                }
               />
               {(hasExtraSteps || (!hasSuggestions && internProcs.length > 0)) && (
                 <button
