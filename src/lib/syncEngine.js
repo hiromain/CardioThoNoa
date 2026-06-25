@@ -124,14 +124,27 @@ async function handleSignIn(userId) {
 
   const lastUserId = localStorage.getItem(LAST_USER_KEY);
   if (lastUserId && lastUserId !== userId) {
+    // Changement d'utilisateur : on efface les données de l'ancien compte.
+    // Les patients de l'ancien utilisateur ne doivent pas fuiter.
     useStore.getState().clearAll();
   }
   localStorage.setItem(LAST_USER_KEY, userId);
 
+  // Les données patient sont strictement locales (RGPD). On les capture ici
+  // — après l'éventuel clearAll du changement d'utilisateur — pour les
+  // restaurer si une opération cloud doit réinitialiser le reste des données
+  // (abonnement expiré, première connexion après paiement, etc.).
+  const savedPatients = useStore.getState().patients;
+
   if (!isPaid) {
-    // Compte gratuit : aperçu d'exemple en lecture seule. Rien n'est poussé
-    // (pushSnapshot court-circuite sur !isPaid), le cloud reste vide.
+    // Compte gratuit / expiré : aperçu d'exemple en lecture seule. Rien n'est
+    // poussé (pushSnapshot court-circuite sur !isPaid), le cloud reste vide.
     useStore.getState().resetDemo();
+    // Restaurer les patients réels : ils ne doivent jamais être effacés par
+    // l'état de l'abonnement (RGPD, données 100 % locales).
+    if (savedPatients.length > 0) {
+      useStore.setState({ patients: savedPatients });
+    }
     return;
   }
 
@@ -139,16 +152,20 @@ async function handleSignIn(userId) {
   const cloud = await pullSnapshot();
   if (cloud) {
     useStore.getState().applyCloudSnapshot(cloud);
+    // patients n'est pas dans CLOUD_FIELDS → déjà préservé par applyCloudSnapshot.
     useStore.getState().setSyncMeta({
       lastSyncedAt: new Date().toISOString(),
       syncStatus: 'idle',
     });
   } else {
-    // Nouveau compte payé sans ligne cloud (première connexion après paiement) :
-    // on efface les données mock chargées en mode gratuit avant de créer la
-    // ligne cloud propre. Sans ce clearAll, les données de démo (services,
-    // semestres, interventions fictifs) seraient poussées dans le cloud.
+    // Nouveau compte payé sans ligne cloud (première connexion après paiement,
+    // ou ligne manquante) : on efface les données de démo chargées en mode
+    // gratuit avant de créer la ligne cloud propre. Les patients réels sont
+    // restaurés ensuite car ils ne font jamais partie du snapshot cloud.
     useStore.getState().clearAll();
+    if (savedPatients.length > 0) {
+      useStore.setState({ patients: savedPatients });
+    }
     await pushSnapshot();
   }
 }
