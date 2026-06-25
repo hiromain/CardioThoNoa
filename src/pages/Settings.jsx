@@ -31,6 +31,7 @@ import {
   KeyRound,
   Mail,
   Eraser,
+  FlaskConical,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useData } from '../store/hooks';
@@ -465,63 +466,65 @@ export default function Settings() {
               </p>
             </Accordion>
 
-            {/* Stage actuel */}
-            <Accordion
-              icon={<Calendar size={18} className="text-primary" />}
-              title="Stage actuel"
-              subtitle={
-                data.semesters.find((s) => s.id === currentSemesterId)?.label || 'Aucun stage sélectionné'
-              }
-              defaultOpen
-            >
-              <div className="flex flex-col gap-2">
-                {activeSemesters.map((sem) => {
-                  const cfg = specialtyForSemester(data, sem.id);
-                  const service = serviceForSemester(data, sem.id);
-                  const selected = currentSemesterId === sem.id;
-                  return (
-                    <button
-                      key={sem.id}
-                      type="button"
-                      onClick={() => setCurrentSemester(sem.id)}
-                      className="flex items-center gap-3 p-3 rounded-lg border-2 transition-colors text-left"
-                      style={{
-                        borderColor: selected ? cfg.color : 'var(--border)',
-                        background: selected ? cfg.muted : 'var(--surface)',
-                      }}
-                    >
-                      <div
-                        className="w-10 h-10 rounded-md flex items-center justify-center text-xl shrink-0"
-                        style={{ background: selected ? cfg.color : 'var(--surface-2)' }}
+            {/* Stage actuel — masqué pour les admins */}
+            {!isAdmin && (
+              <Accordion
+                icon={<Calendar size={18} className="text-primary" />}
+                title="Stage actuel"
+                subtitle={
+                  data.semesters.find((s) => s.id === currentSemesterId)?.label || 'Aucun stage sélectionné'
+                }
+                defaultOpen
+              >
+                <div className="flex flex-col gap-2">
+                  {activeSemesters.map((sem) => {
+                    const cfg = specialtyForSemester(data, sem.id);
+                    const service = serviceForSemester(data, sem.id);
+                    const selected = currentSemesterId === sem.id;
+                    return (
+                      <button
+                        key={sem.id}
+                        type="button"
+                        onClick={() => setCurrentSemester(sem.id)}
+                        className="flex items-center gap-3 p-3 rounded-lg border-2 transition-colors text-left"
+                        style={{
+                          borderColor: selected ? cfg.color : 'var(--border)',
+                          background: selected ? cfg.muted : 'var(--surface)',
+                        }}
                       >
-                        {cfg.emoji}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-[15px] font-bold" style={{ color: selected ? cfg.color : 'var(--text-1)' }}>
-                            {sem.label}
-                          </span>
-                          <span className="text-sm text-ink-2">— {cfg.label}</span>
+                        <div
+                          className="w-10 h-10 rounded-md flex items-center justify-center text-xl shrink-0"
+                          style={{ background: selected ? cfg.color : 'var(--surface-2)' }}
+                        >
+                          {cfg.emoji}
                         </div>
-                        <div className="text-xs text-ink-3 truncate">{service?.name}</div>
-                        <div className="text-[11px] text-ink-3 mt-0.5">
-                          {formatDate(sem.startDate)} → {formatDate(sem.endDate)}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[15px] font-bold" style={{ color: selected ? cfg.color : 'var(--text-1)' }}>
+                              {sem.label}
+                            </span>
+                            <span className="text-sm text-ink-2">— {cfg.label}</span>
+                          </div>
+                          <div className="text-xs text-ink-3 truncate">{service?.name}</div>
+                          <div className="text-[11px] text-ink-3 mt-0.5">
+                            {formatDate(sem.startDate)} → {formatDate(sem.endDate)}
+                          </div>
                         </div>
-                      </div>
-                      <span
-                        className="w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0"
-                        style={{ borderColor: selected ? cfg.color : 'var(--border)', background: selected ? cfg.color : 'transparent' }}
-                      >
-                        {selected && <Check size={11} className="text-white" strokeWidth={3} />}
-                      </span>
-                    </button>
-                  );
-                })}
-                {activeSemesters.length === 0 && (
-                  <p className="text-[13px] text-ink-3">Aucun semestre actif.</p>
-                )}
-              </div>
-            </Accordion>
+                        <span
+                          className="w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0"
+                          style={{ borderColor: selected ? cfg.color : 'var(--border)', background: selected ? cfg.color : 'transparent' }}
+                        >
+                          {selected && <Check size={11} className="text-white" strokeWidth={3} />}
+                        </span>
+                      </button>
+                    );
+                  })}
+                  {activeSemesters.length === 0 && (
+                    <p className="text-[13px] text-ink-3">Aucun semestre actif.</p>
+                  )}
+                </div>
+              </Accordion>
+            )}
 
             {/* Préférences */}
             <Accordion icon={<SlidersHorizontal size={18} className="text-primary" />} title="Préférences">
@@ -717,6 +720,47 @@ export default function Settings() {
             </Accordion>
           </div>
         </div>
+
+        {import.meta.env.DEV && (
+          <div className="rounded-xl overflow-hidden border-2 border-dashed border-orange-400/40 mt-2">
+            <div className="px-4 py-2.5 flex items-center gap-2 border-b border-orange-400/20 bg-orange-500/5">
+              <FlaskConical size={14} className="text-orange-500" />
+              <span className="text-[12px] font-bold text-orange-600">Dev — Simuler un profil</span>
+            </div>
+            <div className="px-4 py-3 flex flex-wrap gap-2">
+              {[
+                {
+                  label: '🔒 Interne (gratuit)',
+                  active: !isAdmin && !isPaid && !isDemo,
+                  state: { isPaid: false, entitlementLoaded: true, isDemo: false, role: 'intern', isAdmin: false },
+                },
+                {
+                  label: '✅ Interne payé',
+                  active: !isAdmin && isPaid && !isDemo,
+                  state: { isPaid: true, entitlementLoaded: true, isDemo: false, role: 'intern', isAdmin: false },
+                },
+                {
+                  label: '⚙️ Admin',
+                  active: isAdmin && !isDemo,
+                  state: { isPaid: true, entitlementLoaded: true, isDemo: false, role: 'admin', isAdmin: true },
+                },
+              ].map(({ label, active, state }) => (
+                <button
+                  key={label}
+                  type="button"
+                  onClick={() => useAuthStore.setState(state)}
+                  className={`px-3 py-1.5 rounded-full text-[12px] font-semibold border transition-colors ${
+                    active
+                      ? 'bg-orange-100 border-orange-400 text-orange-700'
+                      : 'border-line bg-surface text-ink-2 hover:border-orange-300 hover:text-orange-600'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="text-center text-[11px] text-ink-3 pt-1">
           Fait avec ❤️ pour {profile.prenom}
