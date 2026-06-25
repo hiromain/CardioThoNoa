@@ -558,12 +558,13 @@ export default function Settings() {
 
           {/* Colonne droite */}
           <div className="flex flex-col gap-3">
-            {/* Gestion des listes */}
-            <Accordion
-              icon={<ListChecks size={18} className="text-primary" />}
-              title="Gestion des listes"
-              subtitle="Semestres, services, chirurgiens, gestes"
-            >
+            {/* Gestion des listes — masqué pour les admins */}
+            {!isAdmin && (
+              <Accordion
+                icon={<ListChecks size={18} className="text-primary" />}
+                title="Gestion des listes"
+                subtitle="Semestres, services, chirurgiens, gestes"
+              >
               <div className="flex flex-col gap-2">
                 <SemesterManagerCard
                   semesters={[...data.semesters].sort((a, b) => b.startDate.localeCompare(a.startDate))}
@@ -640,7 +641,8 @@ export default function Settings() {
                   })}
                 />
               </div>
-            </Accordion>
+              </Accordion>
+            )}
 
             {/* Installation sur l'écran d'accueil */}
             <Accordion

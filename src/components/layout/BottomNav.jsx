@@ -34,7 +34,7 @@ export function BottomNav() {
   if (isAdmin) {
     return (
       <div className="fixed bottom-0 left-0 right-0 h-20 pb-safe glass border-t border-line z-[100] flex items-center px-2 md:hidden">
-        <Tab to="/admin" icon={Shield} label="Internes" end />
+        <Tab to="/admin" icon={Shield} label="Accueil" end />
         <Tab to="/admin/comptes" icon={UserCog} label="Comptes" />
         <Tab to="/admin/catalogue" icon={ListChecks} label="Catalogue" />
         <Tab to="/admin/centres" icon={Building2} label="Centres" />

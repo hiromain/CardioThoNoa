@@ -60,10 +60,10 @@ export function Sidebar() {
       <nav className="flex-1 px-3 py-4 flex flex-col gap-0.5">
         {isAdmin ? (
           <>
-            <SidebarItem to="/admin" icon={Shield} label="Internes" end />
+            <SidebarItem to="/admin" icon={Shield} label="Accueil" end />
             <SidebarItem to="/admin/comptes" icon={UserCog} label="Comptes & rôles" />
             <SidebarItem to="/admin/catalogue" icon={ListChecks} label="Catalogue de gestes" />
-            <SidebarItem to="/admin/centres" icon={Building2} label="Stats par centre" />
+            <SidebarItem to="/admin/centres" icon={Building2} label="Centres" />
             <SidebarItem to="/parametres" icon={Settings} label="Réglages" />
           </>
         ) : (

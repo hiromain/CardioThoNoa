@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AlertCircle, ChevronRight } from 'lucide-react';
+import { AlertCircle, Search, X } from 'lucide-react';
 import { TopBar } from '../../components/layout/TopBar';
 import { Card, Select, EmptyState } from '../../components/ui';
 import { ROLES } from '../../data/constants';
@@ -14,11 +14,23 @@ const ROLE_OPTIONS = [
   { value: ROLES.ADMIN, label: 'Administrateur' },
 ];
 
+const SORT_OPTIONS = [
+  { value: 'nom',           label: 'Nom A→Z' },
+  { value: 'activite',      label: 'Dernière activité' },
+  { value: 'interventions', label: 'Interventions' },
+];
+
 export default function UserManage() {
   const navigate = useNavigate();
   const [rows, setRows]       = useState([]);
   const [centres, setCentres] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // ── Filtres ──────────────────────────────────────────────────────────────
+  const [search, setSearch]           = useState('');
+  const [centreFilter, setCentreFilter] = useState('');
+  const [roleFilter, setRoleFilter]   = useState('');
+  const [sortBy, setSortBy]           = useState('nom');
 
   const now = useMemo(() => Date.now(), []);
 
@@ -33,6 +45,12 @@ export default function UserManage() {
 
   const centreOptions = [
     { value: '', label: 'Non rattaché' },
+    ...centres.map((c) => ({ value: c.id, label: c.name })),
+  ];
+
+  const centreFiltreOptions = [
+    { value: '', label: 'Tous les centres' },
+    { value: '__none', label: 'Sans centre' },
     ...centres.map((c) => ({ value: c.id, label: c.name })),
   ];
 
@@ -53,10 +71,53 @@ export default function UserManage() {
     try { await assignCentre(userId, cid); } catch { reload(); }
   }
 
+  function clearFilters() {
+    setSearch('');
+    setCentreFilter('');
+    setRoleFilter('');
+    setSortBy('nom');
+  }
+
+  const hasActiveFilters = search || centreFilter || roleFilter;
+
   const sansCentre = useMemo(
     () => rows.filter((r) => r.role !== 'admin' && !r.centre_id).length,
     [rows]
   );
+
+  // ── Filtrage + tri ───────────────────────────────────────────────────────
+  const filtered = useMemo(() => {
+    let list = [...rows];
+
+    if (search) {
+      const q = search.toLowerCase().trim();
+      list = list.filter((r) =>
+        (r.display_name || '').toLowerCase().includes(q) ||
+        (r.email || '').toLowerCase().includes(q)
+      );
+    }
+
+    if (centreFilter === '__none') {
+      list = list.filter((r) => !r.centre_id);
+    } else if (centreFilter) {
+      list = list.filter((r) => r.centre_id === centreFilter);
+    }
+
+    if (roleFilter) {
+      list = list.filter((r) => r.role === roleFilter);
+    }
+
+    return list.sort((a, b) => {
+      if (sortBy === 'nom')
+        return (a.display_name || a.email || '').localeCompare(b.display_name || b.email || '');
+      if (sortBy === 'interventions')
+        return (b.intervention_count || 0) - (a.intervention_count || 0);
+      // activite
+      const da = a.last_activity ? new Date(a.last_activity).getTime() : 0;
+      const db = b.last_activity ? new Date(b.last_activity).getTime() : 0;
+      return db - da;
+    });
+  }, [rows, search, centreFilter, roleFilter, sortBy]);
 
   return (
     <div>
@@ -64,7 +125,7 @@ export default function UserManage() {
 
       <div className="px-4 py-5 lg:px-8 lg:py-6 max-w-5xl mx-auto flex flex-col gap-4">
 
-        {/* Sous-titre */}
+        {/* Titre */}
         <div className="anim-fade-up">
           <h1 className="text-[20px] font-extrabold text-ink-1">Comptes</h1>
           <p className="text-[13px] text-ink-3 mt-0.5">
@@ -77,10 +138,7 @@ export default function UserManage() {
         {!loading && sansCentre > 0 && (
           <div
             className="rounded-xl px-4 py-3 flex items-start gap-3 anim-fade-up stagger-1"
-            style={{
-              background: 'rgba(217,119,6,0.08)',
-              border: '1px solid rgba(217,119,6,0.25)',
-            }}
+            style={{ background: 'rgba(217,119,6,0.08)', border: '1px solid rgba(217,119,6,0.25)' }}
           >
             <div
               className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5"
@@ -99,14 +157,73 @@ export default function UserManage() {
           </div>
         )}
 
-        {/* Tableau */}
+        {/* ── Barre de recherche + filtres ─────────────────────────────── */}
+        {!loading && (
+          <div className="glass-card rounded-xl px-4 py-3 flex flex-col gap-3 anim-fade-up stagger-1">
+            {/* Ligne 1 : recherche */}
+            <div className="relative">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-3 pointer-events-none" />
+              <input
+                type="search"
+                placeholder="Rechercher par nom, prénom ou email…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full pl-8 pr-3 py-2 text-[14px] rounded-lg border border-line bg-surface text-ink-1 outline-none focus:border-primary transition-colors"
+              />
+            </div>
+
+            {/* Ligne 2 : filtres + tri */}
+            <div className="flex gap-2 flex-wrap items-center">
+              <Select
+                value={centreFilter}
+                onChange={(e) => setCentreFilter(e.target.value)}
+                options={centreFiltreOptions}
+                className="text-[13px] flex-1 min-w-[160px]"
+              />
+              <Select
+                value={roleFilter}
+                onChange={(e) => setRoleFilter(e.target.value)}
+                options={[
+                  { value: '', label: 'Tous les rôles' },
+                  { value: ROLES.INTERN, label: 'Internes' },
+                  { value: ROLES.ADMIN, label: 'Admins' },
+                ]}
+                className="text-[13px] w-36"
+              />
+              <Select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                options={SORT_OPTIONS}
+                className="text-[13px] w-44"
+              />
+              {hasActiveFilters && (
+                <button
+                  type="button"
+                  onClick={clearFilters}
+                  className="flex items-center gap-1 text-[12px] font-semibold text-ink-3 hover:text-ink-1 transition-colors shrink-0"
+                >
+                  <X size={13} /> Effacer
+                </button>
+              )}
+            </div>
+
+            {/* Résumé des résultats */}
+            {hasActiveFilters && (
+              <p className="text-[11px] text-ink-3">
+                {filtered.length} résultat{filtered.length !== 1 ? 's' : ''} sur {rows.length}
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* ── Tableau ──────────────────────────────────────────────────── */}
         {loading ? (
           <div className="flex flex-col gap-3">
             <div className="rounded-xl h-12 skeleton" />
             {[0,1,2,3].map((i) => <div key={i} className="rounded-xl h-16 skeleton" />)}
           </div>
-        ) : rows.length === 0 ? (
-          <EmptyState icon="👥" title="Aucun compte" />
+        ) : filtered.length === 0 ? (
+          <EmptyState icon="🔍" title="Aucun résultat" subtitle="Modifie les filtres de recherche." />
         ) : (
           <Card padding="p-0" className="anim-fade-up stagger-2">
             {/* Table desktop */}
@@ -125,7 +242,7 @@ export default function UserManage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line">
-                  {rows.map((r) => {
+                  {filtered.map((r) => {
                     const isStale =
                       !r.last_activity ||
                       now - new Date(r.last_activity).getTime() >= SIXTY_DAYS_MS;
@@ -204,7 +321,7 @@ export default function UserManage() {
 
             {/* Liste mobile */}
             <ul className="md:hidden divide-y divide-line">
-              {rows.map((r) => (
+              {filtered.map((r) => (
                 <li key={r.user_id}>
                   <div className="px-4 py-3.5 flex flex-col gap-3">
                     <div className="flex items-center gap-3">
