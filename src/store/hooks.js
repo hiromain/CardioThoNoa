@@ -8,6 +8,7 @@ export function useData() {
     (s) => ({
       services: s.services,
       surgeons: s.surgeons,
+      centerSurgeons: s.centerSurgeons,
       semesters: s.semesters,
       patients: s.patients,
       procedureTypes: s.procedureTypes,
