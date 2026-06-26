@@ -11,6 +11,20 @@ import { useStore } from '../store/useStore';
 import { useAuthStore, isLocalUser } from '../store/useAuthStore';
 import { fetchSharedCatalog } from './catalog';
 import { fetchCentreSurgeons } from './adminQueries';
+import { SEED_SEMESTER_IDS, SEED_SURGEON_IDS } from '../data/seed';
+
+// Retourne l'ensemble des patientId référencés par des interventions mock
+// (celles qui pointent sur un semestre ou chirurgien du jeu de données de démo).
+// À appeler AVANT que le cloud ne remplace les interventions locales.
+function collectSeedPatientIds(interventions) {
+  const semSet = new Set(SEED_SEMESTER_IDS);
+  const sgSet  = new Set(SEED_SURGEON_IDS);
+  return new Set(
+    interventions
+      .filter((i) => semSet.has(i.semesterId) || sgSet.has(i.surgeonId))
+      .map((i) => i.patientId)
+  );
+}
 
 const SYNC_DEBOUNCE_MS = 4000;
 const LAST_USER_KEY = 'cardiothonoa-last-user-id';
@@ -142,20 +156,23 @@ async function handleSignIn(userId) {
   }
   localStorage.setItem(LAST_USER_KEY, userId);
 
-  // Les données patient sont strictement locales (RGPD). On les capture ici
-  // — après l'éventuel clearAll du changement d'utilisateur — pour les
-  // restaurer si une opération cloud doit réinitialiser le reste des données
-  // (abonnement expiré, première connexion après paiement, etc.).
+  // Capturer les données locales avant toute opération cloud.
+  // - savedPatients : patients locaux (RGPD, jamais dans le cloud) à préserver
+  //   si réels ; on filtre les patients mock avant toute restauration.
+  // - preSyncInterventions : nécessaire pour identifier les patients mock
+  //   AVANT que le cloud ne remplace les interventions locales.
+  const preSyncInterventions = useStore.getState().interventions;
   const savedPatients = useStore.getState().patients;
 
   if (!isPaid) {
     // Compte gratuit / expiré : aperçu d'exemple en lecture seule. Rien n'est
     // poussé (pushSnapshot court-circuite sur !isPaid), le cloud reste vide.
     useStore.getState().resetDemo();
-    // Restaurer les patients réels : ils ne doivent jamais être effacés par
-    // l'état de l'abonnement (RGPD, données 100 % locales).
-    if (savedPatients.length > 0) {
-      useStore.setState({ patients: savedPatients });
+    // Restaurer uniquement les patients réels (pas les patients mock du seed).
+    const mockIds = collectSeedPatientIds(preSyncInterventions);
+    const realPatients = savedPatients.filter((p) => !mockIds.has(p.id));
+    if (realPatients.length > 0) {
+      useStore.setState({ patients: realPatients });
     }
     return;
   }
@@ -163,20 +180,31 @@ async function handleSignIn(userId) {
   // Compte payé : le cloud fait foi.
   const cloud = await pullSnapshot();
   if (cloud) {
+    // Identifier les patients mock avant que applyCloudSnapshot ne remplace
+    // les interventions locales (après, on ne peut plus les distinguer).
+    const mockIds = collectSeedPatientIds(preSyncInterventions);
     useStore.getState().applyCloudSnapshot(cloud);
-    // patients n'est pas dans CLOUD_FIELDS → déjà préservé par applyCloudSnapshot.
+    // Purger les patients mock qui ont survécu (patients n'est pas dans
+    // CLOUD_FIELDS donc applyCloudSnapshot les préserve intentionnellement).
+    if (mockIds.size > 0) {
+      useStore.setState((s) => ({
+        patients: s.patients.filter((p) => !mockIds.has(p.id)),
+      }));
+    }
     useStore.getState().setSyncMeta({
       lastSyncedAt: new Date().toISOString(),
       syncStatus: 'idle',
     });
   } else {
     // Nouveau compte payé sans ligne cloud (première connexion après paiement,
-    // ou ligne manquante) : on efface les données de démo chargées en mode
-    // gratuit avant de créer la ligne cloud propre. Les patients réels sont
-    // restaurés ensuite car ils ne font jamais partie du snapshot cloud.
+    // ou ligne manquante) : effacer les données de démo. Restaurer uniquement
+    // les patients réels — en mode gratuit addPatient est bloqué par guardWrite,
+    // donc savedPatients ne contient que des données mock dans ce cas.
+    const mockIds = collectSeedPatientIds(preSyncInterventions);
+    const realPatients = savedPatients.filter((p) => !mockIds.has(p.id));
     useStore.getState().clearAll();
-    if (savedPatients.length > 0) {
-      useStore.setState({ patients: savedPatients });
+    if (realPatients.length > 0) {
+      useStore.setState({ patients: realPatients });
     }
     await pushSnapshot();
   }
