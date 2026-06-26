@@ -126,6 +126,10 @@ export const useStore = create(
           services: s.services.filter((x) => x.id !== id),
         }))),
 
+      // ── Chirurgiens du centre (non persistés, chargés au login) ─────────
+      centerSurgeons: [],
+      setCenterSurgeons: (list) => set({ centerSurgeons: list }),
+
       // ── Chirurgiens ───────────────────────────────────────────────────────
       addSurgeon: guardWrite((data) => {
         const id = uid('sg');

@@ -10,6 +10,7 @@ import { supabase, isSupabaseConfigured } from './supabaseClient';
 import { useStore } from '../store/useStore';
 import { useAuthStore, isLocalUser } from '../store/useAuthStore';
 import { fetchSharedCatalog } from './catalog';
+import { fetchCentreSurgeons } from './adminQueries';
 
 const SYNC_DEBOUNCE_MS = 4000;
 const LAST_USER_KEY = 'cardiothonoa-last-user-id';
@@ -107,16 +108,27 @@ export async function loadSharedCatalog() {
   }
 }
 
+// Charge les chirurgiens du centre de l'interne (table `centres`) dans le store.
+// En cas d'échec ou si pas de centre rattaché, la liste reste vide.
+export async function loadCenterSurgeons(centreId) {
+  const surgeons = await fetchCentreSurgeons(centreId);
+  useStore.getState().setCenterSurgeons(surgeons);
+}
+
 async function handleSignIn(userId) {
   const auth = useAuthStore.getState();
 
   // Charger le profil complet (rôle/centre + droit d'accès is_paid) AVANT de
   // décider quoi charger. refreshProfile retourne isPaid. Le catalogue partagé
-  // est chargé en parallèle (lecture pour tous).
+  // et les chirurgiens du centre sont chargés en parallèle (lecture pour tous).
   const [isPaid] = await Promise.all([
     auth.refreshProfile(),
     loadSharedCatalog(),
   ]);
+
+  // Chirurgiens du centre : disponibles après refreshProfile (centreId connu).
+  const centreId = useAuthStore.getState().centreId;
+  if (centreId) loadCenterSurgeons(centreId);
 
   // Démo / dev : données locales déjà en place, aucune interaction cloud.
   const user = auth.user;

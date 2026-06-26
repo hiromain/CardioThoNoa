@@ -81,6 +81,27 @@ export async function deleteCentre(id) {
   if (error) throw error;
 }
 
+// Retourne les chirurgiens rattachés à un centre avec des IDs synthétiques
+// stables, pour qu'un interne puisse les sélectionner dans ses interventions.
+export async function fetchCentreSurgeons(centreId) {
+  if (!isSupabaseConfigured || !centreId) return [];
+  const { data, error } = await supabase
+    .from('centres')
+    .select('surgeons')
+    .eq('id', centreId)
+    .maybeSingle();
+  if (error || !data) return [];
+  return (data.surgeons ?? [])
+    .filter((sg) => sg.lastName?.trim())
+    .map((sg, i) => ({
+      id: `centre_${centreId}_${i}`,
+      title: sg.title || '',
+      lastName: sg.lastName || '',
+      fromCentre: true,
+      serviceId: null,
+    }));
+}
+
 // ── Gestion des comptes (rôle / centre) ──────────────────────────────────────
 
 export async function setRole(userId, role) {

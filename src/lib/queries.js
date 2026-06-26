@@ -42,7 +42,13 @@ export function surgeonsForService(state, serviceId) {
 }
 export function surgeonsForSemester(state, semesterId) {
   const sem = byId(state.semesters, semesterId);
-  return sem ? surgeonsForService(state, sem.serviceId) : [];
+  if (!sem) return [];
+  const personal = surgeonsForService(state, sem.serviceId);
+  const center = state.centerSurgeons ?? [];
+  // Exclure les chirurgiens du centre dont le nom est déjà dans la liste perso.
+  const personalNames = new Set(personal.map((s) => s.lastName?.toLowerCase()));
+  const freshCenter = center.filter((s) => !personalNames.has(s.lastName?.toLowerCase()));
+  return [...personal, ...freshCenter];
 }
 // Gestes disponibles pour un type de service, filtrés par portée.
 // scope: 'patient' | 'intern' | undefined (tous). 'autre' est toujours inclus.
@@ -94,7 +100,9 @@ export function previousSemester(state, semesterId) {
 export function resolveIntervention(state, intervention) {
   if (!intervention) return null;
   const patient = byId(state.patients, intervention.patientId);
-  const surgeon = byId(state.surgeons, intervention.surgeonId);
+  const surgeon =
+    byId(state.surgeons, intervention.surgeonId) ||
+    byId(state.centerSurgeons ?? [], intervention.surgeonId);
   const semester = byId(state.semesters, intervention.semesterId);
   const service = semester ? byId(state.services, semester.serviceId) : null;
   const specialty = getSpecialty(service?.type);

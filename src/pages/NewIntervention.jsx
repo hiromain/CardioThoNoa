@@ -113,7 +113,10 @@ export default function NewIntervention() {
     setShowAllIntern(false);
   }
 
-  const valid = form.semesterId && form.patientId && form.surgeonId && form.date;
+  // Le chirurgien est requis seulement quand des options existent.
+  // Sans chirurgiens configurés, on ne bloque pas la saisie.
+  const valid = form.semesterId && form.patientId && form.date &&
+    (surgeons.length === 0 || form.surgeonId);
 
   function handleSave() {
     const payload = {
@@ -172,12 +175,21 @@ export default function NewIntervention() {
               />
               <Select
                 label="Chirurgien"
-                required
-                placeholder={surgeons.length ? 'Choisir un chirurgien' : 'Aucun chirurgien dans ce service'}
+                required={surgeons.length > 0}
+                placeholder={surgeons.length ? 'Choisir un chirurgien' : 'Aucun chirurgien configuré'}
                 value={form.surgeonId}
                 onChange={(e) => set('surgeonId', e.target.value)}
                 options={surgeons.map((s) => ({ value: s.id, label: surgeonName(s) }))}
               />
+              {surgeons.length === 0 && service && (
+                <p className="text-[12px] text-ink-3 -mt-1">
+                  Ajoutez des chirurgiens dans{' '}
+                  <a href="/settings" className="text-primary font-semibold underline underline-offset-2">
+                    Réglages → Chirurgiens
+                  </a>{' '}
+                  pour pouvoir les sélectionner ici.
+                </p>
+              )}
             </FormSection>
 
             <FormSection title="Patient">
