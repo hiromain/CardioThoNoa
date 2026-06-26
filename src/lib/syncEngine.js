@@ -168,7 +168,9 @@ async function handleSignIn(userId) {
     // Compte gratuit / expiré : aperçu d'exemple en lecture seule. Rien n'est
     // poussé (pushSnapshot court-circuite sur !isPaid), le cloud reste vide.
     useStore.getState().resetDemo();
-    // Restaurer uniquement les patients réels (pas les patients mock du seed).
+    // Restaurer les patients réels (ex-compte payé rétrogradé). En mode purement
+    // gratuit, addPatient est bloqué par guardWrite donc savedPatients ne contient
+    // que des données mock — le filtre les écarte sans risquer de vrais patients.
     const mockIds = collectSeedPatientIds(preSyncInterventions);
     const realPatients = savedPatients.filter((p) => !mockIds.has(p.id));
     if (realPatients.length > 0) {
@@ -180,32 +182,21 @@ async function handleSignIn(userId) {
   // Compte payé : le cloud fait foi.
   const cloud = await pullSnapshot();
   if (cloud) {
-    // Identifier les patients mock avant que applyCloudSnapshot ne remplace
-    // les interventions locales (après, on ne peut plus les distinguer).
-    const mockIds = collectSeedPatientIds(preSyncInterventions);
     useStore.getState().applyCloudSnapshot(cloud);
-    // Purger les patients mock qui ont survécu (patients n'est pas dans
-    // CLOUD_FIELDS donc applyCloudSnapshot les préserve intentionnellement).
-    if (mockIds.size > 0) {
-      useStore.setState((s) => ({
-        patients: s.patients.filter((p) => !mockIds.has(p.id)),
-      }));
-    }
+    // patients n'est pas dans CLOUD_FIELDS → préservé par applyCloudSnapshot.
+    // On ne purge pas ici : une intervention réelle peut référencer un semestre
+    // seed si le formulaire a defaulté dessus, et supprimer ces patients serait
+    // une perte de données. La purge du seed se fait via clearSeedData (manuel).
     useStore.getState().setSyncMeta({
       lastSyncedAt: new Date().toISOString(),
       syncStatus: 'idle',
     });
   } else {
     // Nouveau compte payé sans ligne cloud (première connexion après paiement,
-    // ou ligne manquante) : effacer les données de démo. Restaurer uniquement
-    // les patients réels — en mode gratuit addPatient est bloqué par guardWrite,
-    // donc savedPatients ne contient que des données mock dans ce cas.
-    const mockIds = collectSeedPatientIds(preSyncInterventions);
-    const realPatients = savedPatients.filter((p) => !mockIds.has(p.id));
+    // ou ligne manquante) : on efface les données de démo et on repart de zéro.
+    // On ne restaure pas savedPatients : en mode gratuit addPatient est bloqué
+    // par guardWrite, donc il ne peut y avoir que des données mock à ce stade.
     useStore.getState().clearAll();
-    if (realPatients.length > 0) {
-      useStore.setState({ patients: realPatients });
-    }
     await pushSnapshot();
   }
 }
